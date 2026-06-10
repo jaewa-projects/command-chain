@@ -26,7 +26,7 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     private CompletableFuture<Void> future;
 
-    private static Executor executor = Executors.newCachedThreadPool();
+    private static final Executor executor = Executors.newCachedThreadPool();
 
     @Getter
     private final Context context;

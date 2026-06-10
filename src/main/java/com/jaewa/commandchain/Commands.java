@@ -75,9 +75,7 @@ public class Commands {
             if (EventQueue.isDispatchThread()) {
                 executeImpl(e, chain);
             } else {
-                SwingUtilities.invokeLater(() -> {
-                    executeImpl(e, chain);
-                });
+                SwingUtilities.invokeLater(() -> executeImpl(e, chain));
             }
         }
 
