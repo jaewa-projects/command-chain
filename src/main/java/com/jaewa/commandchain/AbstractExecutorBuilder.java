@@ -37,8 +37,8 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
     }
 
     public LoopExecutorBuilder<B> loop(String name, Loop loop){
-        LoopExecutorBuilder<B> result = new LoopExecutorBuilder<>(context, getThis());
-        commandExecutor.add(name, Commands.loop(result.getCommandExecutor(), loop));
+        LoopExecutorBuilder<B> result = new LoopExecutorBuilder<>(loop, context, getThis());
+        commandExecutor.add(name, result.build());
         return result;
     }
 

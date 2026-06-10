@@ -1,41 +1,11 @@
 package com.jaewa.commandchain;
 
+import java.awt.EventQueue;
+import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class Commands {
-
-    private static class LoopCommandDecorator implements AsyncCommand {
-        private final CommandExecutor cmd;
-        private final Loop loop;
-
-        private LoopCommandDecorator(CommandExecutor cmd, Loop loop) {
-            this.cmd = cmd;
-            this.loop = loop;
-        }
-
-        @Override
-        public void execute(Context ctx, CommandChain chain) {
-            loop.init(ctx);
-            doIteration(chain);
-        }
-
-        private void doIteration(CommandChain chain) {
-            if (loop.hasNext()) {
-                cmd.start()
-                        .thenRun(() -> {
-                            loop.next();
-                            doIteration(chain);
-                        })
-                        .exceptionally(e -> {
-                            chain.fail(e);
-                            return null;
-                        });
-            } else {
-                chain.next();
-            }
-        }
-    }
 
     private Commands() {
 
@@ -63,6 +33,20 @@ public class Commands {
         };
     }
 
+    public static AsyncCommand onEventQueue(AsyncCommand cmd) {
+        return (ctx, chain) -> {
+            if (EventQueue.isDispatchThread()) {
+                cmd.execute(ctx, chain);
+            } else {
+                SwingUtilities.invokeLater(() -> cmd.execute(ctx, chain));
+            }
+        };
+    }
+
+    public static AsyncCommand onEventQueue(Command cmd) {
+        return onEventQueue(async(cmd));
+    }
+
     public static AsyncFailureHandler async(FailureHandler cmd) {
         return (e, chain) -> {
             try {
@@ -72,10 +56,6 @@ public class Commands {
                 chain.fail(ex);
             }
         };
-    }
-
-    static AsyncCommand loop(CommandExecutor cmd, Loop loop) {
-        return new LoopCommandDecorator(cmd, loop);
     }
 
     static AsyncCommand safe(AsyncCommand cmd) {

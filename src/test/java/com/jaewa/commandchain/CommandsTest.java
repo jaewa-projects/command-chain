@@ -122,13 +122,4 @@ class CommandsTest {
         verify(chain).fail(ex);
     }
 
-    @Test
-    void testLoopFactory() {
-        CommandExecutor executor = mock(CommandExecutor.class);
-        Loop loop = mock(Loop.class);
-        AsyncCommand loopCmd = Commands.loop(executor, loop);
-        
-        assertNotNull(loopCmd);
-        assertTrue(loopCmd.getClass().getName().contains("LoopCommandDecorator"));
-    }
 }
