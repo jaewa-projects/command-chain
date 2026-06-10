@@ -1,7 +1,5 @@
 package com.jaewa.commandchain;
 
-import java.awt.EventQueue;
-import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -24,10 +22,10 @@ public class Commands {
         }
     }
 
-    private static class AsyncFailureCommandAdapter implements AsyncFailureCommand {
-        private final FailureCommand cmd;
+    private static class AsyncFailureCommandAdapter implements AsyncFailureHandler {
+        private final FailureHandler cmd;
 
-        public AsyncFailureCommandAdapter(FailureCommand cmd) {
+        public AsyncFailureCommandAdapter(FailureHandler cmd) {
             this.cmd = cmd;
         }
 
@@ -39,48 +37,6 @@ public class Commands {
             } catch (Exception ex) {
                 chain.fail(ex);
             }
-        }
-    }
-
-    private static class EventQueueCommand implements AsyncCommand {
-        private final AsyncCommand cmd;
-
-        public EventQueueCommand(AsyncCommand cmd) {
-            this.cmd = cmd;
-        }
-
-        @Override
-        public void execute(Context ctx, CommandChain chain) {
-            if (EventQueue.isDispatchThread()) {
-                executeImpl(ctx, chain);
-            } else {
-                SwingUtilities.invokeLater(() -> executeImpl(ctx, chain));
-            }
-        }
-
-        private void executeImpl(Context ctx, CommandChain chain) {
-            cmd.execute(ctx, chain);
-        }
-    }
-
-    private static class EventQueueFailureCommand implements AsyncFailureCommand {
-        private final AsyncFailureCommand cmd;
-
-        public EventQueueFailureCommand(AsyncFailureCommand cmd) {
-            this.cmd = cmd;
-        }
-
-        @Override
-        public void execute(Throwable e, CommandChain chain) {
-            if (EventQueue.isDispatchThread()) {
-                executeImpl(e, chain);
-            } else {
-                SwingUtilities.invokeLater(() -> executeImpl(e, chain));
-            }
-        }
-
-        private void executeImpl(Throwable e, CommandChain chain) {
-            cmd.execute(e, chain);
         }
     }
 
@@ -117,25 +73,15 @@ public class Commands {
     }
 
     private static class WireTapCommand implements AsyncCommand {
-        private final AsyncCommand cmd;
+        private final Runnable runnable;
 
-        public WireTapCommand(AsyncCommand cmd) {
-            this.cmd = cmd;
+        public WireTapCommand(Runnable runnable) {
+            this.runnable = runnable;
         }
 
         @Override
         public void execute(Context ctx, CommandChain chain) {
-            cmd.execute(ctx, new CommandChain() {
-                @Override
-                public void next() {
-
-                }
-
-                @Override
-                public void fail(Throwable e) {
-                    log.error("wiretap failed", e);
-                }
-            });
+            ExecutorService.execute(runnable);
             chain.next();
         }
     }
@@ -158,6 +104,23 @@ public class Commands {
         }
     }
 
+    private static class SafeCommand implements AsyncCommand {
+        private final AsyncCommand cmd;
+
+        public SafeCommand(AsyncCommand cmd) {
+            this.cmd = cmd;
+        }
+
+        @Override
+        public void execute(Context ctx, CommandChain chain) {
+            try {
+                cmd.execute(ctx, chain);
+            } catch (Exception e) {
+                chain.fail(e);
+            }
+        }
+    }
+
     private Commands() {
 
     }
@@ -166,39 +129,23 @@ public class Commands {
         return new AsyncCommandAdapter(cmd);
     }
 
-    public static AsyncCommand onEventQueue(AsyncCommand cmd) {
-        return new EventQueueCommand(cmd);
+    public static AsyncCommand wireTap(Runnable runnable) {
+        return new WireTapCommand(runnable);
     }
 
-        public static AsyncCommand onEventQueue(Command cmd) {
-            return new EventQueueCommand(async(cmd));
-        }
-
-        public static AsyncCommand wireTap(AsyncCommand cmd) {
-            return new WireTapCommand(cmd);
-        }
-
-        public static AsyncCommand wireTap(Command cmd) {
-            return new WireTapCommand(async(cmd));
-        }
-
-        public static AsyncFailureCommand async(FailureCommand cmd) {
+    public static AsyncFailureHandler async(FailureHandler cmd) {
         return new AsyncFailureCommandAdapter(cmd);
     }
 
-    public static AsyncFailureCommand onEventQueue(FailureCommand cmd) {
-        return new EventQueueFailureCommand(async(cmd));
-    }
-
-    public static AsyncFailureCommand onEventQueue(AsyncFailureCommand cmd) {
-        return new EventQueueFailureCommand(cmd);
-    }
-
-    public static AsyncCommand loop(CommandExecutor cmd, Loop loop) {
+    static AsyncCommand loop(CommandExecutor cmd, Loop loop) {
         return new LoopCommandDecorator(cmd, loop);
     }
 
-    public static AsyncCommand interruptible(AsyncCommand cmd) {
+    static AsyncCommand safe(AsyncCommand cmd) {
+        return new SafeCommand(cmd);
+    }
+
+    static AsyncCommand interruptible(AsyncCommand cmd) {
         return new InterruptibleCommand(cmd);
     }
 

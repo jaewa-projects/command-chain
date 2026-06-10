@@ -1,5 +1,5 @@
 package com.jaewa.commandchain;
 
-public interface AsyncFailureCommand {
+public interface AsyncFailureHandler {
     void execute(Throwable e, CommandChain chain);
 }

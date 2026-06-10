@@ -3,14 +3,13 @@ package com.jaewa.commandchain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import static com.jaewa.commandchain.Commands.interruptible;
+import static com.jaewa.commandchain.Commands.safe;
 
 @Slf4j
 public class CommandExecutor implements CommandChain, AsyncCommand {
@@ -18,15 +17,13 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
     private final List<ImmutablePair<String, AsyncCommand>> commands;
 
     @Setter
-    private AsyncFailureCommand failureCommand;
+    private AsyncFailureHandler failureHandler;
 
     private int executionIndex = -1;
 
     private Throwable failure = null;
 
     private CompletableFuture<Void> future;
-
-    private static final Executor executor = Executors.newCachedThreadPool();
 
     @Getter
     private final Context context;
@@ -41,7 +38,7 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
     }
 
     public void add(String name, AsyncCommand cmd) {
-        commands.add(ImmutablePair.of(name, cmd));
+        commands.add(ImmutablePair.of(name, interruptible(safe(cmd))));
     }
 
     public CompletableFuture<Void> start() {
@@ -75,8 +72,8 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
             future.completeExceptionally(failure);
         } else {
             failure = e;
-            if (failureCommand != null) {
-                failureCommand.execute(e, this);
+            if (failureHandler != null) {
+                failureHandler.execute(e, this);
             } else {
                 future.completeExceptionally(e);
             }
@@ -84,8 +81,8 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
     }
 
     private void executeCommandAsync(String name, AsyncCommand cmd) {
-        executor.execute(() -> {
-            interruptible(cmd).execute(context, this);
+        ExecutorService.execute(() -> {
+            cmd.execute(context, this);
             log.debug("Command {} executed", name);
         });
     }

@@ -26,13 +26,13 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
         return getThis();
     }
 
-    public B onFailure(FailureCommand cmd) {
-        commandExecutor.setFailureCommand(Commands.async(cmd));
+    public B onFailure(FailureHandler cmd) {
+        commandExecutor.setFailureHandler(Commands.async(cmd));
         return getThis();
     }
 
-    public B onFailure(AsyncFailureCommand cmd) {
-        commandExecutor.setFailureCommand(cmd);
+    public B onFailure(AsyncFailureHandler cmd) {
+        commandExecutor.setFailureHandler(cmd);
         return getThis();
     }
 

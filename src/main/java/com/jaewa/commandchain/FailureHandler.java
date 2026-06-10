@@ -1,5 +1,5 @@
 package com.jaewa.commandchain;
 
-public interface FailureCommand {
+public interface FailureHandler {
     void execute(Throwable e);
 }

@@ -1,0 +1,77 @@
+package com.jaewa.commandchain;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class TimedLoopTest {
+
+    @Mock
+    private Context context;
+
+    @Test
+    void testTimedLoopLogic() throws InterruptedException {
+        long duration = 500; // 500ms
+        TimedLoop timedLoop = new TimedLoop("timer", duration);
+
+        timedLoop.init(context);
+        verify(context).set("timer", timedLoop);
+        
+        long start = timedLoop.getStart();
+        assertTrue(start <= System.currentTimeMillis());
+        assertEquals(0, timedLoop.getCycle());
+
+        // Almeno una iterazione dovrebbe esserci se la durata è positiva
+        assertTrue(timedLoop.hasNext());
+        timedLoop.next();
+        assertEquals(1, timedLoop.getCycle());
+
+        // Aspettiamo che il tempo passi
+        Thread.sleep(duration + 10);
+
+        assertFalse(timedLoop.hasNext());
+        assertTrue(timedLoop.getElapsedTime() >= duration);
+    }
+
+    @Test
+    void testTimedLoopInChain() throws Exception {
+        Context realContext = new ContextImpl();
+        MainExecutorBuilder builder = new MainExecutorBuilder(realContext);
+
+        AtomicInteger executionCount = new AtomicInteger(0);
+        long duration = 200; // 200ms
+
+        TimedLoop timedLoop = new TimedLoop("myTimer", duration);
+
+        CommandExecutor executor = builder.loop("timedLoop", timedLoop)
+                .exec("increment", (ctx, chain) -> {
+                    executionCount.incrementAndGet();
+                    // Piccola pausa per non saturare la CPU e rendere il test più realistico
+                    try {
+                        Thread.sleep(50);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    chain.next();
+                })
+                .end()
+                .build();
+
+        executor.start().get(5, TimeUnit.SECONDS);
+
+        // Con 200ms di durata e ~50ms per iterazione, ci aspettiamo circa 4 iterazioni
+        // (dipende dallo scheduling, ma sicuramente più di zero)
+        int finalCount = executionCount.get();
+        System.out.println("[DEBUG_LOG] Execution count: " + finalCount);
+        assertTrue(finalCount > 0, "Dovrebbe essere stata eseguita almeno un'iterazione");
+        assertEquals(finalCount, timedLoop.getCycle());
+    }
+}
