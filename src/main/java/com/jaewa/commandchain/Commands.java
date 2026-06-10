@@ -4,41 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class Commands {
-    private static class AsyncCommandAdapter implements AsyncCommand {
-        private final Command cmd;
-
-        public AsyncCommandAdapter(Command cmd) {
-            this.cmd = cmd;
-        }
-
-        @Override
-        public void execute(Context ctx, CommandChain chain) {
-            try {
-                cmd.execute(ctx);
-                chain.next();
-            } catch (Exception e) {
-                chain.fail(e);
-            }
-        }
-    }
-
-    private static class AsyncFailureCommandAdapter implements AsyncFailureHandler {
-        private final FailureHandler cmd;
-
-        public AsyncFailureCommandAdapter(FailureHandler cmd) {
-            this.cmd = cmd;
-        }
-
-        @Override
-        public void execute(Throwable e, CommandChain chain) {
-            try {
-                cmd.execute(e);
-                chain.next();
-            } catch (Exception ex) {
-                chain.fail(ex);
-            }
-        }
-    }
 
     private static class LoopCommandDecorator implements AsyncCommand {
         private final CommandExecutor cmd;
@@ -72,69 +37,41 @@ public class Commands {
         }
     }
 
-    private static class WireTapCommand implements AsyncCommand {
-        private final Runnable runnable;
-
-        public WireTapCommand(Runnable runnable) {
-            this.runnable = runnable;
-        }
-
-        @Override
-        public void execute(Context ctx, CommandChain chain) {
-            ExecutorService.execute(runnable);
-            chain.next();
-        }
-    }
-
-
-    private static class InterruptibleCommand implements AsyncCommand {
-        private final AsyncCommand cmd;
-
-        public InterruptibleCommand(AsyncCommand cmd) {
-            this.cmd = cmd;
-        }
-
-        @Override
-        public void execute(Context ctx, CommandChain chain) {
-            if (ctx.isInterrupted()) {
-                chain.fail(new CommandInterruptedException());
-            } else {
-                cmd.execute(ctx, chain);
-            }
-        }
-    }
-
-    private static class SafeCommand implements AsyncCommand {
-        private final AsyncCommand cmd;
-
-        public SafeCommand(AsyncCommand cmd) {
-            this.cmd = cmd;
-        }
-
-        @Override
-        public void execute(Context ctx, CommandChain chain) {
-            try {
-                cmd.execute(ctx, chain);
-            } catch (Exception e) {
-                chain.fail(e);
-            }
-        }
-    }
-
     private Commands() {
 
     }
 
     public static AsyncCommand async(Command cmd) {
-        return new AsyncCommandAdapter(cmd);
+        return (ctx, chain) -> {
+            try {
+                cmd.execute(ctx);
+                chain.next();
+            } catch (Exception e) {
+                chain.fail(e);
+            }
+        };
+    }
+
+    public static AsyncCommand async(Runnable runnable) {
+        return async((Command) ctx -> runnable.run());
     }
 
     public static AsyncCommand wireTap(Runnable runnable) {
-        return new WireTapCommand(runnable);
+        return (ctx, chain) -> {
+            ExecutorService.execute(runnable);
+            chain.next();
+        };
     }
 
     public static AsyncFailureHandler async(FailureHandler cmd) {
-        return new AsyncFailureCommandAdapter(cmd);
+        return (e, chain) -> {
+            try {
+                cmd.execute(e);
+                chain.next();
+            } catch (Exception ex) {
+                chain.fail(ex);
+            }
+        };
     }
 
     static AsyncCommand loop(CommandExecutor cmd, Loop loop) {
@@ -142,11 +79,23 @@ public class Commands {
     }
 
     static AsyncCommand safe(AsyncCommand cmd) {
-        return new SafeCommand(cmd);
+        return (ctx, chain) -> {
+            try {
+                cmd.execute(ctx, chain);
+            } catch (Exception e) {
+                chain.fail(e);
+            }
+        };
     }
 
     static AsyncCommand interruptible(AsyncCommand cmd) {
-        return new InterruptibleCommand(cmd);
+        return (ctx, chain) -> {
+            if (ctx.isInterrupted()) {
+                chain.fail(new CommandInterruptedException());
+            } else {
+                cmd.execute(ctx, chain);
+            }
+        };
     }
 
 }
