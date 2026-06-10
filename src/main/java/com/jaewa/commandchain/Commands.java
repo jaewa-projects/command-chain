@@ -43,6 +43,20 @@ public class Commands {
         };
     }
 
+    public static AsyncFailureHandler onEventQueue(AsyncFailureHandler h) {
+        return (e, chain) -> {
+            if (EventQueue.isDispatchThread()) {
+                h.execute(e, chain);
+            } else {
+                SwingUtilities.invokeLater(() -> h.execute(e, chain));
+            }
+        };
+    }
+
+    public static AsyncFailureHandler onEventQueue(FailureHandler h) {
+        return onEventQueue(async(h));
+    }
+
     public static AsyncCommand onEventQueue(Command cmd) {
         return onEventQueue(async(cmd));
     }
