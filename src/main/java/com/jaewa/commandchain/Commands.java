@@ -2,15 +2,54 @@ package com.jaewa.commandchain;
 
 import java.awt.EventQueue;
 import javax.swing.SwingUtilities;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
+
+/**
+ * <h2>Commands</h2>
+ * <p>
+ * Utility class that provides decorator methods for wrapping and enhancing commands.
+ * This class does not directly generate commands but instead provides decorators that
+ * add capabilities such as asynchronous execution, event queue dispatch, interruption
+ * handling, and error safety to existing commands.
+ * </p>
+ * <p>
+ * The decorators enable the composition of enhanced command behaviors into command chains
+ * and provide helper methods to handle thread context and error propagation.
+ * </p>
+ * <p>
+ * This class cannot be instantiated and only provides static methods.
+ * </p>
+ *
+ * <h3>Key Features:</h3>
+ * <ul>
+ *   <li>Wraps <code>Command</code> instances into <code>AsyncCommand</code> for asynchronous execution.</li>
+ *   <li>Wraps <code>Runnable</code> instances into <code>AsyncCommand</code> for integration into command chains.</li>
+ *   <li>Ensures commands and failure handlers execute on the AWT Event Dispatch Thread.</li>
+ *   <li>Wraps <code>FailureHandler</code> instances into <code>AsyncFailureHandler</code> for asynchronous error handling.</li>
+ *   <li>Provides internal decorators for error safety and interruption handling.</li>
+ * </ul>
+ */
 public class Commands {
 
     private Commands() {
 
     }
 
+    /**
+     * Creates an asynchronous wrapper around a given <code>Command</code> instance, enabling it
+     * to participate as an <code>AsyncCommand</code> in an asynchronous command chain.
+     * The returned <code>AsyncCommand</code> executes the provided <code>Command</code> and then
+     * progresses or terminates the chain based on the execution outcome.
+     *
+     * If the command executes successfully, the chain's <code>CommandChain.next()</code>
+     * method is called to proceed to the next command in the chain. If the command throws
+     * an exception, the <code>CommandChain.fail(Throwable)</code> method is called with
+     * the exception, failing the chain execution.
+     *
+     * @param cmd the <code>Command</code> to be adapted and executed as part of an asynchronous chain
+     * @return an <code>AsyncCommand</code> that executes the given <code>Command</code> within an
+     *         asynchronous command chain
+     */
     public static AsyncCommand async(Command cmd) {
         return (ctx, chain) -> {
             try {
@@ -22,17 +61,37 @@ public class Commands {
         };
     }
 
+    /**
+     * Creates an asynchronous wrapper around a given <code>Runnable</code> instance, enabling it
+     * to participate as an <code>AsyncCommand</code> in an asynchronous command chain.
+     * The returned <code>AsyncCommand</code> executes the provided <code>Runnable</code> and then
+     * progresses or terminates the chain based on the execution outcome.
+     *
+     * The <code>Runnable.run()</code> method is executed within the asynchronous chain execution
+     * context. If the execution completes without throwing exceptions, the chain's
+     * <code>CommandChain.next()</code> method is invoked to proceed to the next command.
+     * If an exception is thrown during execution, the <code>CommandChain.fail(Throwable)</code>
+     * method is called with the exception, thereby failing the chain execution.
+     *
+     * @param runnable the <code>Runnable</code> to be adapted and executed as part of an asynchronous chain
+     * @return an <code>AsyncCommand</code> that executes the given <code>Runnable</code> within an
+     *         asynchronous command chain
+     */
     public static AsyncCommand async(Runnable runnable) {
         return async((Command) ctx -> runnable.run());
     }
 
-    public static AsyncCommand wireTap(Runnable runnable) {
-        return (ctx, chain) -> {
-            ExecutorService.execute(runnable);
-            chain.next();
-        };
-    }
-
+    /**
+     * Ensures that the given <code>AsyncCommand</code> is executed on the AWT Event Dispatch Thread.
+     * If the current thread is the Event Dispatch Thread, the command is executed immediately.
+     * Otherwise, it schedules the command to be executed asynchronously on the Event Dispatch Thread.
+     *
+     * @param cmd the <code>AsyncCommand</code> to be executed on the Event Dispatch Thread, ensuring
+     *            proper thread safety when interacting with UI components or other event-thread-specific
+     *            operations
+     * @return a new <code>AsyncCommand</code> that wraps the given <code>AsyncCommand</code> and ensures
+     *         its execution on the Event Dispatch Thread
+     */
     public static AsyncCommand onEventQueue(AsyncCommand cmd) {
         return (ctx, chain) -> {
             if (EventQueue.isDispatchThread()) {
@@ -43,6 +102,16 @@ public class Commands {
         };
     }
 
+    /**
+     * Ensures that the provided <code>AsyncFailureHandler</code> is executed on the AWT Event Dispatch Thread.
+     * If the current thread is the Event Dispatch Thread, the handler is executed immediately.
+     * Otherwise, the handler is scheduled to execute asynchronously on the Event Dispatch Thread.
+     *
+     * @param h the <code>AsyncFailureHandler</code> to be executed on the Event Dispatch Thread, ensuring
+     *          thread safety when interacting with UI components or other event-thread-specific operations
+     * @return a new <code>AsyncFailureHandler</code> that wraps the given <code>AsyncFailureHandler</code> and ensures its
+     *         execution on the Event Dispatch Thread
+     */
     public static AsyncFailureHandler onEventQueue(AsyncFailureHandler h) {
         return (e, chain) -> {
             if (EventQueue.isDispatchThread()) {
@@ -57,10 +126,39 @@ public class Commands {
         return onEventQueue(async(h));
     }
 
+    /**
+     * Ensures that the given <code>Command</code> is adapted into an <code>AsyncCommand</code>
+     * and scheduled to execute on the AWT Event Dispatch Thread.
+     * <p>
+     * The method converts the provided <code>Command</code> into an asynchronous wrapper
+     * using <code>async(Command)</code>, and then guarantees its execution on the
+     * Event Dispatch Thread by passing it to the overloaded method <code>onEventQueue(AsyncCommand)</code>.
+     * This ensures thread safety for operations that interact with UI components
+     * or require event-thread-specific handling.
+     *
+     * @param cmd the <code>Command</code> to be adapted and executed on the Event Dispatch Thread
+     * @return an <code>AsyncCommand</code> that wraps the given <code>Command</code> and
+     *         ensures its execution on the Event Dispatch Thread
+     */
     public static AsyncCommand onEventQueue(Command cmd) {
         return onEventQueue(async(cmd));
     }
 
+    /**
+     * Creates an asynchronous wrapper around a given <code>FailureHandler</code> instance, enabling it
+     * to participate as an <code>AsyncFailureHandler</code> in an asynchronous command chain.
+     * The returned <code>AsyncFailureHandler</code> executes the provided <code>FailureHandler</code> and then
+     * progresses or terminates the chain based on the execution outcome.
+     *
+     * If the failure handler executes successfully, the chain's <code>CommandChain.next()</code>
+     * method is called to proceed to the next command in the chain. If the failure handler throws
+     * an exception, the <code>CommandChain.fail(Throwable)</code> method is called with the exception,
+     * failing the chain execution.
+     *
+     * @param cmd the <code>FailureHandler</code> to be adapted and executed as part of an asynchronous chain
+     * @return an <code>AsyncFailureHandler</code> that executes the given <code>FailureHandler</code> within an
+     *         asynchronous command chain
+     */
     public static AsyncFailureHandler async(FailureHandler cmd) {
         return (e, chain) -> {
             try {
@@ -91,5 +189,13 @@ public class Commands {
             }
         };
     }
+
+    static AsyncCommand wireTap(Runnable runnable) {
+        return (ctx, chain) -> {
+            ExecutorService.execute(runnable);
+            chain.next();
+        };
+    }
+
 
 }

@@ -4,7 +4,7 @@ public abstract class AbstractLoop implements Loop {
     private final String varName;
     protected Context ctx;
 
-    public AbstractLoop(String varName) {
+    protected AbstractLoop(String varName) {
         this.varName = varName;
     }
 

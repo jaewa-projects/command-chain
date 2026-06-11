@@ -30,8 +30,8 @@ public interface CommandChain {
      * will dictate whether the flow concludes or an error is raised.
      * </p>
      * <p>
-     * This method is commonly used in conjunction with mechanisms for error handling 
-     * (e.g., {@code fail(Throwable)}) and allows dynamic coordination of dependent 
+     * This method is commonly used in conjunction with mechanisms for error handling
+     * (e.g., {@code fail(Throwable)}) and allows dynamic coordination of dependent
      * tasks in a modular and reusable manner.
      * </p>
      */

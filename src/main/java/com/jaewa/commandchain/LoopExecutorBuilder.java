@@ -42,7 +42,7 @@ public class LoopExecutorBuilder<P extends AbstractExecutorBuilder<?>> extends A
         this.loop = loop;
     }
 
-    public AsyncCommand build() {
+    AsyncCommand build() {
         return new LoopCommandAdapter(getCommandExecutor(), loop);
     }
 }

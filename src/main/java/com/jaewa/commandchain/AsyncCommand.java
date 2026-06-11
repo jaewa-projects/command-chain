@@ -32,17 +32,17 @@ public interface AsyncCommand {
      * Executes the asynchronous command logic as part of a chain.
      * This method is invoked with a context object for managing shared state
      * and a command chain object for controlling execution flow.
-     *
+     * <p>
      * Implementations of this method should perform their specific logic,
      * and then explicitly decide whether to progress the chain or terminate it
      * by invoking appropriate methods on the {@code CommandChain} instance.
-     *
+     * <p>
      * Commands must handle errors internally and use {@link CommandChain#fail(Throwable)}
      * if an error occurs to terminate the chain with the provided exception.
      * Alternatively, they can allow unchecked exceptions to propagate, which are treated
      * as a failure by the chain execution mechanism.
      *
-     * @param ctx the context object providing shared state for this command execution
+     * @param ctx   the context object providing shared state for this command execution
      * @param chain the command chain managing the execution flow and allowing progression or termination
      */
     void execute(Context ctx, CommandChain chain);

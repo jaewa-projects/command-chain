@@ -15,14 +15,14 @@ package com.jaewa.commandchain;
  *
  * <h2>Execution Flow Control</h2>
  * <p>
- * Unlike {@link AsyncCommand}, a {@code Command} automatically advances the execution 
+ * Unlike {@link AsyncCommand}, a {@code Command} automatically advances the execution
  * of the {@link CommandChain} when the {@link #execute(Context)} method terminates normally.
  * This means:
  * </p>
  * <ul>
- *   <li>The normal termination of the {@code execute} method is equivalent to calling 
+ *   <li>The normal termination of the {@code execute} method is equivalent to calling
  *       {@link CommandChain#next()} in an {@link AsyncCommand}</li>
- *   <li>An exception thrown by the {@code execute} method is equivalent to calling 
+ *   <li>An exception thrown by the {@code execute} method is equivalent to calling
  *       {@link CommandChain#fail(Throwable)} in an {@link AsyncCommand}</li>
  * </ul>
  * <p>

@@ -3,10 +3,9 @@ package com.jaewa.commandchain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.jaewa.commandchain.Commands.interruptible;
 import static com.jaewa.commandchain.Commands.safe;
@@ -15,18 +14,18 @@ import static com.jaewa.commandchain.Commands.safe;
  * <h2>CommandExecutor</h2>
  * <p>
  * CommandExecutor manages the execution of a chain of asynchronous commands.
- * Each command in the chain is responsible for explicitly continuing the execution 
- * by calling {@link CommandChain#next()} upon successful completion, or terminating 
+ * Each command in the chain is responsible for explicitly continuing the execution
+ * by calling {@link CommandChain#next()} upon successful completion, or terminating
  * the chain by calling {@link CommandChain#fail(Throwable)} in case of an error.
  * This design gives each command full control over the execution flow.
  * </p>
  * <p>
- * Command execution is fully asynchronous: each command runs on a separate thread 
- * managed by the {@link ExecutorService}. This means that the thread executing a 
- * command is different from the thread that invokes the {@link #start()} method, 
- * and also different from the thread that calls {@link CommandChain#next()} or 
- * {@link CommandChain#fail(Throwable)} on the CommandChain. This ensures non-blocking 
- * execution and allows commands to perform long-running operations without blocking 
+ * Command execution is fully asynchronous: each command runs on a separate thread
+ * managed by the {@link ExecutorService}. This means that the thread executing a
+ * command is different from the thread that invokes the {@link #start()} method,
+ * and also different from the thread that calls {@link CommandChain#next()} or
+ * {@link CommandChain#fail(Throwable)} on the CommandChain. This ensures non-blocking
+ * execution and allows commands to perform long-running operations without blocking
  * the caller or other commands.
  * </p>
  * <p>
@@ -49,8 +48,9 @@ import static com.jaewa.commandchain.Commands.safe;
  *   <li>Allows the chain to be interrupted during execution.</li>
  * </ul>
  */
-@Slf4j
 public class CommandExecutor implements CommandChain, AsyncCommand {
+
+    private static final Logger log = LoggerFactory.getLogger(CommandExecutor.class);
 
     private final List<ImmutablePair<String, AsyncCommand>> commands;
 
@@ -72,7 +72,7 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
     public static MainExecutorBuilder builder() {
         return new MainExecutorBuilder(new ContextImpl());
     }
-    
+
     CommandExecutor(Context context) {
         this.commands = new ArrayList<>();
         this.context = context;
@@ -92,16 +92,16 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
     /**
      * Starts the execution of the command chain asynchronously.
      * This method initializes necessary state variables, begins
-     * the processing of commands in the queue, and returns a 
+     * the processing of commands in the queue, and returns a
      * {@link CompletableFuture} that represents the asynchronous
      * execution of the command chain. If all commands execute
      * successfully, the future will complete normally. If any
      * command fails or an error occurs, the future will complete
      * exceptionally with the corresponding failure.
      *
-     * @return a {@link CompletableFuture} that completes when the 
-     *         command chain execution is finished, either successfully 
-     *         or with an exception.
+     * @return a {@link CompletableFuture} that completes when the
+     * command chain execution is finished, either successfully
+     * or with an exception.
      */
     public CompletableFuture<Void> start() {
         future = new CompletableFuture<>();
@@ -159,9 +159,9 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
     }
 
     /**
-     * Interrupts the current execution context by delegating the interrupt call 
-     * to the associated {@code Context} object. This method is used to signal 
-     * an interruption in a command execution workflow, which may cause subsequent 
+     * Interrupts the current execution context by delegating the interrupt call
+     * to the associated {@code Context} object. This method is used to signal
+     * an interruption in a command execution workflow, which may cause subsequent
      * commands or operations to stop processing based on the interruption state.
      */
     public void interrupt() {
