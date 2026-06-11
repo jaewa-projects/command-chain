@@ -11,12 +11,49 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import static com.jaewa.commandchain.Commands.interruptible;
 import static com.jaewa.commandchain.Commands.safe;
 
+/**
+ * <h2>CommandExecutor</h2>
+ * <p>
+ * CommandExecutor manages the execution of a chain of asynchronous commands.
+ * Each command in the chain is responsible for explicitly continuing the execution 
+ * by calling {@link CommandChain#next()} upon successful completion, or terminating 
+ * the chain by calling {@link CommandChain#fail(Throwable)} in case of an error.
+ * This design gives each command full control over the execution flow.
+ * </p>
+ * <p>
+ * Command execution is fully asynchronous: each command runs on a separate thread 
+ * managed by the {@link ExecutorService}. This means that the thread executing a 
+ * command is different from the thread that invokes the {@link #start()} method, 
+ * and also different from the thread that calls {@link CommandChain#next()} or 
+ * {@link CommandChain#fail(Throwable)} on the CommandChain. This ensures non-blocking 
+ * execution and allows commands to perform long-running operations without blocking 
+ * the caller or other commands.
+ * </p>
+ * <p>
+ * It supports sequential execution, error handling, and interruption of the command chain.
+ * Commands can be added to the executor and executed in the order they were added.
+ * It also allows handling failures through an optional failure handler.
+ * </p>
+ * <p>
+ * To create a CommandExecutor instance, use the {@link #builder()} method, which returns
+ * a builder with a fluent API for configuring and constructing the executor.
+ * </p>
+ *
+ * <h3>Key Features:</h3>
+ * <ul>
+ *   <li>Manages a list of asynchronous commands with names for identification.</li>
+ *   <li>Executes commands sequentially, providing a shared {@link Context} object.</li>
+ *   <li>Each command controls the chain flow by calling {@code next()} or {@code fail()}.</li>
+ *   <li>Commands execute asynchronously on separate threads managed by ExecutorService.</li>
+ *   <li>Handles execution failures and supports custom failure handling.</li>
+ *   <li>Allows the chain to be interrupted during execution.</li>
+ * </ul>
+ */
 @Slf4j
 public class CommandExecutor implements CommandChain, AsyncCommand {
 
     private final List<ImmutablePair<String, AsyncCommand>> commands;
 
-    @Setter
     private AsyncFailureHandler failureHandler;
 
     private int executionIndex = -1;
@@ -25,9 +62,13 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     private CompletableFuture<Void> future;
 
-    @Getter
     private final Context context;
 
+    /**
+     * Creates and returns a new fluent builder for constructing a {@code CommandExecutor} instance.
+     *
+     * @return a new fluent builder instance.
+     */
     public static MainExecutorBuilder builder() {
         return new MainExecutorBuilder(new ContextImpl());
     }
@@ -37,10 +78,31 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
         this.context = context;
     }
 
+    /**
+     * Adds an asynchronous command to the command queue with the specified name.
+     * The command is wrapped to ensure it handles interruptions and exceptions gracefully.
+     *
+     * @param name the name identifying the command
+     * @param cmd  the asynchronous command to be added
+     */
     public void add(String name, AsyncCommand cmd) {
         commands.add(ImmutablePair.of(name, interruptible(safe(cmd))));
     }
 
+    /**
+     * Starts the execution of the command chain asynchronously.
+     * This method initializes necessary state variables, begins
+     * the processing of commands in the queue, and returns a 
+     * {@link CompletableFuture} that represents the asynchronous
+     * execution of the command chain. If all commands execute
+     * successfully, the future will complete normally. If any
+     * command fails or an error occurs, the future will complete
+     * exceptionally with the corresponding failure.
+     *
+     * @return a {@link CompletableFuture} that completes when the 
+     *         command chain execution is finished, either successfully 
+     *         or with an exception.
+     */
     public CompletableFuture<Void> start() {
         future = new CompletableFuture<>();
         executionIndex = -1;
@@ -96,8 +158,37 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
                 });
     }
 
+    /**
+     * Interrupts the current execution context by delegating the interrupt call 
+     * to the associated {@code Context} object. This method is used to signal 
+     * an interruption in a command execution workflow, which may cause subsequent 
+     * commands or operations to stop processing based on the interruption state.
+     */
     public void interrupt() {
         context.interrupt();
     }
 
+    /**
+     * Sets the failure handler that will be invoked when a failure occurs during
+     * the execution of the command chain. The provided failure handler defines
+     * how to handle exceptions or errors specific to the asynchronous context.
+     *
+     * @param failureHandler the {@code AsyncFailureHandler} implementation to manage
+     *                       errors and exceptions during the execution of the command chain
+     */
+    public void setFailureHandler(AsyncFailureHandler failureHandler) {
+        this.failureHandler = failureHandler;
+    }
+
+    /**
+     * Retrieves the current execution context associated with this {@code CommandExecutor}.
+     * The context provides the shared state and control mechanisms required for managing
+     * the command execution workflow. It allows storing, retrieving, and manipulating
+     * data while tracking and handling interruptions.
+     *
+     * @return the {@code Context} object associated with the current command execution
+     */
+    public Context getContext() {
+        return context;
+    }
 }
