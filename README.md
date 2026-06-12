@@ -58,67 +58,71 @@ The `CommandChain` object passed to each command is your handle to the algorithm
 
 ## Usage Examples
 
-### 1. Simulating an Asynchronous Algorithm
-This example shows how a sequence of steps can control the flow.
+Below are some examples of increasing complexity to illustrate the library's potential.
+
+### 1. Simple Linear Chain
+In this example, we define a sequence of synchronous steps. Synchronous commands automatically advance to the next step.
 
 ```java
-CommandExecutor executor = CommandExecutor.builder()
-    .exec("Step 1: Prep", (ctx, chain) -> {
-        System.out.println("Preparing...");
-        // Simulated delay
-        CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS).execute(chain::next);
-    })
-    .exec("Step 2: Process", (ctx, chain) -> {
-        System.out.println("Processing logic...");
-        boolean success = performCalculation();
-        if (success) {
-            chain.next();
-        } else {
-            chain.fail(new RuntimeException("Calculation failed"));
-        }
-    })
-    .exec("Step 3: Cleanup", ctx -> {
-        // Synchronous commands are also supported and auto-advance
-        System.out.println("Done.");
-    })
-    .build();
-
-executor.start().join();
-```
-
-### 2. Asynchronous Loops
-Loops also wait for `chain.next()` within each iteration, allowing for complex asynchronous repetitive tasks.
-
-```java
-ForLoop<Integer> forLoop = new ForLoop<>("idx", () -> 0, i -> i < 3, i -> i + 1);
+import static com.jaewa.commandchain.Commands.*;
 
 CommandExecutor.builder()
-    .loop("AsyncLoop", forLoop)
-        .exec("Work", (ctx, chain) -> {
-            int i = ctx.get("idx", ForLoop.class).getValue();
-            System.out.println("Iteration " + i + " started...");
-            
-            // Wait for some async event before next iteration
-            myService.asyncOp().thenRun(chain::next);
-        })
-    .end()
+    .exec("Initialization", ctx -> System.out.println("Starting..."))
+    .exec("Data loading", ctx -> {
+        ctx.set("data", "Important value");
+        System.out.println("Data loaded into context.");
+    })
+    .exec("Finish", ctx -> {
+        String data = ctx.get("data", String.class);
+        System.out.println("Process completed with: " + data);
+    })
     .build()
     .start();
 ```
 
-### 3. Error Handling
-Failures can be triggered manually or caught automatically if an exception is thrown.
+### 2. Async Management and Errors
+Here we introduce asynchronous commands (which must call `chain.next()` or `chain.fail()`) and a centralized failure handler.
 
 ```java
 CommandExecutor.builder()
-    .exec("RiskyStep", (ctx, chain) -> {
-        if (isPathBlocked()) {
-            chain.fail(new Exception("Path blocked"));
-        } else {
-            chain.next();
-        }
+    .exec("Remote Fetch", (ctx, chain) -> {
+        fetchFromApi().thenAccept(result -> {
+            ctx.set("api_result", result);
+            chain.next(); // Proceeds only after the async operation finishes
+        }).exceptionally(ex -> {
+            chain.fail(ex); // Interrupts the chain in case of error
+            return null;
+        });
     })
-    .onFailure(ex -> System.err.println("Algorithm stopped: " + ex.getMessage()))
+    .exec("Save", ctx -> {
+        Object res = ctx.get("api_result", Object.class);
+        saveToDb(res);
+    })
+    .onFailure(ex -> System.err.println("Error during execution: " + ex.getMessage()))
+    .build()
+    .start();
+```
+
+### 3. Complex Orchestration (Loops and Event Queue)
+Advanced example showing integration with timed loops and command execution on the UI thread (via `onEventQueue`).
+
+```java
+import static com.jaewa.commandchain.Commands.*;
+
+CommandExecutor.builder()
+    .exec("start acquisition", onEventQueue((Context ctx) -> assignStatus(AcquireStatus.STARTING)))
+    .exec("open camera", ctx -> camera.open())
+    .loop("timelapse loop", new TimedLoop("loop", 5000L)) // Loop for 5 seconds
+        .exec("camera acquire", ctx -> camera.acquireImages())
+        .exec("save images", ctx -> {
+            int cycle = ctx.get("loop", TimedLoop.class).getCycle();
+            saveImages(cycle);
+        })
+        .exec("notify ui", onEventQueue(ctx -> updateProgressUI()))
+    .end()
+    .exec("camera close", ctx -> camera.close())
+    .exec("go to idle", onEventQueue(ctx -> setIdleStatus()))
+    .onFailure(onEventQueue(this::handleError))
     .build()
     .start();
 ```
