@@ -2,6 +2,7 @@ package com.jaewa.commandchain;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 
 /**
@@ -22,9 +23,34 @@ import java.util.concurrent.Executors;
  */
 public class ExecutorService {
 
-    private static final Executor executor = Executors.newVirtualThreadPerTaskExecutor();
+    private static Supplier<Executor> executorSupplier = Executors::newCachedThreadPool;
+
+    private static Executor executor = null;
 
     private ExecutorService() {
+    }
+
+    private static Executor getExecutor() {
+        if (executor == null) {
+            executor = executorSupplier.get();
+        }
+        return executor;
+    }
+
+    /**
+     * Sets the supplier responsible for creating the executor instance used by the service.
+     * This allows customization of the executor implementation, ensuring flexibility
+     * in how tasks are executed asynchronously.
+     *
+     * Note: Changing the executor supplier affects all subsequent task executions, as it
+     * dictates the instance of the executor that will be retrieved. Ensure the new supplier
+     * provides a valid and functional {@link Executor} implementation.
+     *
+     * @param executorSupplier a {@link Supplier} of {@link Executor} instances; must not be null
+     */
+    public static void setExecutorSupplier(Supplier<Executor> executorSupplier) {
+        ExecutorService.executorSupplier = executorSupplier;
+        executor = null;
     }
 
     /**
@@ -35,6 +61,6 @@ public class ExecutorService {
      * @param runnable the task to be executed; must not be null
      */
     public static void execute(Runnable runnable) {
-        executor.execute(runnable);
+        getExecutor().execute(runnable);
     }
 }
