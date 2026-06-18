@@ -31,7 +31,7 @@ package com.jaewa.commandchain;
  * </p>
  *
  */
-public interface Command {
+public interface Command<E extends Exception> {
 
 	/**
 	 * Executes the command within the given context. This method defines the behavior
@@ -41,7 +41,6 @@ public interface Command {
 	 *
 	 * @param ctx the execution context used to store or retrieve shared state and
 	 *            manage execution flow control
-	 * @throws Exception if an error occurs during the execution of the command
-	 */
-	void execute(Context ctx) throws Exception;
+     */
+	void execute(Context ctx) throws E;
 }
