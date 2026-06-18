@@ -94,7 +94,7 @@ class CommandExecutorTest {
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
         inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(failureHandler).execute(argThat(a -> a instanceof IllegalStateException), eq(commandExecutor));
+        inOrder.verify(failureHandler).execute(argThat(IllegalStateException.class::isInstance), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
@@ -125,7 +125,7 @@ class CommandExecutorTest {
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
         inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(failureHandler).execute(argThat(a -> a instanceof IllegalStateException), eq(commandExecutor));
+        inOrder.verify(failureHandler).execute(argThat(IllegalStateException.class::isInstance), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
@@ -158,7 +158,7 @@ class CommandExecutorTest {
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
         inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(failureHandler).execute(argThat(a -> a instanceof CommandInterruptedException), eq(commandExecutor));
+        inOrder.verify(failureHandler).execute(argThat(CommandInterruptedException.class::isInstance), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
