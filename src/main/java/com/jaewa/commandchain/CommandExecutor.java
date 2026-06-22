@@ -3,6 +3,8 @@ package com.jaewa.commandchain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +66,8 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     private final Context context;
 
+    private final Lock lock = new ReentrantLock();
+
     /**
      * Creates and returns a new fluent builder for constructing a {@code CommandExecutor} instance.
      *
@@ -86,7 +90,12 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * @param cmd  the asynchronous command to be added
      */
     public void add(String name, AsyncCommand cmd) {
-        commands.add(ImmutablePair.of(name, interruptible(safe(cmd))));
+        try {
+            lock.lock();
+            commands.add(ImmutablePair.of(name, interruptible(safe(cmd))));
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
@@ -117,9 +126,17 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
             future.completeExceptionally(failure);
             return;
         }
-        executionIndex++;
-        if (executionIndex < commands.size()) {
-            ImmutablePair<String, AsyncCommand> cmdPair = commands.get(executionIndex);
+        ImmutablePair<String, AsyncCommand> cmdPair = null;
+        try {
+            lock.lock();
+            executionIndex++;
+            if (executionIndex < commands.size()) {
+                cmdPair = commands.get(executionIndex);
+            }
+        } finally {
+            lock.unlock();
+        }
+        if (cmdPair != null) {
             log.info("Executing command: {}", cmdPair.left);
             executeCommandAsync(cmdPair.left, cmdPair.right);
         } else {

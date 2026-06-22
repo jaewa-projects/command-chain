@@ -33,6 +33,9 @@ class CommandExecutorTest {
     private AsyncCommand command2;
 
     @Mock
+    private AsyncCommand command3;
+
+    @Mock
     private AsyncFailureHandler failureHandler;
 
     @BeforeEach
@@ -188,5 +191,39 @@ class CommandExecutorTest {
 
         assertThrows(TimeoutException.class, () -> commandExecutor.start().get(1, TimeUnit.SECONDS));
     }
+
+    @Test
+    void testExecuteWithDynamicAddition() throws Exception {
+        doAnswer(invocation -> {
+            CommandExecutor executor = invocation.getArgument(1);
+            executor.add("cmd3", command3);
+            executor.next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command3).execute(any(), any());
+
+        commandExecutor.add("cmd1", command1);
+        commandExecutor.add("cmd2", command2);
+
+        commandExecutor.start().get(5, TimeUnit.SECONDS);
+
+        InOrder inOrder = inOrder(command1, command2, command3);
+        inOrder.verify(command1).execute(context, commandExecutor);
+        inOrder.verify(command2).execute(context, commandExecutor);
+        inOrder.verify(command3).execute(context, commandExecutor);
+
+        verifyNoMoreInteractions(command1, command2, command3);
+    }
+    
+    
 
 }
