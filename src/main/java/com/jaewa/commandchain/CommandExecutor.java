@@ -3,8 +3,6 @@ package com.jaewa.commandchain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,8 +64,6 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     private final Context context;
 
-    private final Lock lock = new ReentrantLock();
-
     /**
      * Creates and returns a new fluent builder for constructing a {@code CommandExecutor} instance.
      *
@@ -89,13 +85,8 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * @param name the name identifying the command
      * @param cmd  the asynchronous command to be added
      */
-    public void add(String name, AsyncCommand cmd) {
-        try {
-            lock.lock();
-            commands.add(ImmutablePair.of(name, interruptible(safe(cmd))));
-        } finally {
-            lock.unlock();
-        }
+    public synchronized void add(String name, AsyncCommand cmd) {
+        commands.add(ImmutablePair.of(name, interruptible(safe(cmd))));
     }
 
     /**
@@ -121,20 +112,15 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
     }
 
     @Override
-    public void next() {
+    public synchronized void next() {
         if (failure != null) {
             future.completeExceptionally(failure);
             return;
         }
         ImmutablePair<String, AsyncCommand> cmdPair = null;
-        try {
-            lock.lock();
-            executionIndex++;
-            if (executionIndex < commands.size()) {
-                cmdPair = commands.get(executionIndex);
-            }
-        } finally {
-            lock.unlock();
+        executionIndex++;
+        if (executionIndex < commands.size()) {
+            cmdPair = commands.get(executionIndex);
         }
         if (cmdPair != null) {
             log.info("Executing command: {}", cmdPair.left);

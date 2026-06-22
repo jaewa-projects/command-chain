@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -18,7 +19,7 @@ class TimedLoopTest {
     private Context context;
 
     @Test
-    void testTimedLoopLogic() throws InterruptedException {
+    void testTimedLoopLogic() {
         long duration = 500; // 500ms
         TimedLoop timedLoop = new TimedLoop("timer", duration);
 
@@ -35,7 +36,7 @@ class TimedLoopTest {
         assertEquals(1, timedLoop.getCycle());
 
         // Aspettiamo che il tempo passi
-        Thread.sleep(duration + 10);
+        await().atMost(duration + 10, TimeUnit.MILLISECONDS).until(() -> timedLoop.getElapsedTime() >= duration);
 
         assertFalse(timedLoop.hasNext());
         assertTrue(timedLoop.getElapsedTime() >= duration);
@@ -54,12 +55,6 @@ class TimedLoopTest {
         CommandExecutor executor = builder.loop("timedLoop", timedLoop)
                 .exec("increment", (ctx, chain) -> {
                     executionCount.incrementAndGet();
-                    // Piccola pausa per non saturare la CPU e rendere il test più realistico
-                    try {
-                        Thread.sleep(50);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
                     chain.next();
                 })
                 .end()

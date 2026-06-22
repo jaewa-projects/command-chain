@@ -1,15 +1,18 @@
 package com.jaewa.commandchain;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CommandsTest {
@@ -75,18 +78,11 @@ class CommandsTest {
     void testWireTapCommand() {
         AtomicBoolean executed = new AtomicBoolean(false);
         Runnable runnable = () -> executed.set(true);
-        
+
         AsyncCommand wireTap = Commands.wireTap(runnable);
         wireTap.execute(context, chain);
-        
-        // Aspettiamo un attimo poiché ExecutorService.execute potrebbe essere asincrono
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        
-        assertTrue(executed.get());
+
+        await().atMost(1, TimeUnit.SECONDS).untilTrue(executed);
         verify(chain).next();
     }
 
