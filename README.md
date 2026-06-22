@@ -1,6 +1,6 @@
 # Jaewa Command Chain
 
-A lightweight Java 21+ library designed to orchestrate complex algorithms as a sequence of asynchronous steps. The core philosophy is that each step (Command) is responsible for its own completion, signaling the progression to the next phase via manual flow control.
+A lightweight Java 11+ library designed to orchestrate complex algorithms as a sequence of asynchronous steps. The core philosophy is that each step (Command) is responsible for its own completion, signaling the progression to the next phase via manual flow control.
 
 ## Key Concept: Asynchronous Step Orchestration
 
@@ -11,6 +11,7 @@ Unlike traditional linear execution, `command-chain` allows you to model algorit
 - **Manual Flow Control**: Total control over algorithm progression using `chain.next()` and `chain.fail()`.
 - **Asynchronous by Design**: Ideal for simulating complex state machines or multi-step processes where steps finish at different times.
 - **Fluent Algorithm Builder**: Compose your logic using a clean, readable builder API.
+- **Dynamic Command Addition**: Add new commands to the chain even during execution, allowing for adaptive workflows.
 - **Native Loop Support**: Build-in support for repetitive tasks (`ForLoop`, `TimedLoop`) that integrate seamlessly with the asynchronous flow.
 - **Robust Error Propagation**: Centralized failure handling that catches both synchronous exceptions and manual failure signals.
 
@@ -127,12 +128,32 @@ CommandExecutor.builder()
     .start();
 ```
 
+### 3. Dynamic Command Addition
+You can add commands to the executor even while it's running. This is useful for building adaptive algorithms that react to data or events.
+
+```java
+CommandExecutor executor = CommandExecutor.builder()
+    .exec("Step 1", (ctx, chain) -> {
+        System.out.println("Executing Step 1");
+        // Dynamically add a new command
+        ((CommandExecutor) chain).add("Dynamic Step", ctx2 -> {
+            System.out.println("Executing Dynamic Step");
+        });
+        chain.next();
+    })
+    .exec("Step 2", ctx -> System.out.println("Executing Step 2"))
+    .build();
+
+executor.start(); 
+// Execution sequence: Step 1 -> Step 2 -> Dynamic Step
+```
+
 ---
 
 ## Technical Details
 
-### Virtual Threads
-While the focus is on asynchronous control flow, the library leverages Java 21 **Virtual Threads** to manage the execution of the chain. This ensures that even with many concurrent chains, the overhead remains minimal.
+### Thread Management
+While the focus is on asynchronous control flow, the library uses an internal `ExecutorService` to manage the execution of the chain. This ensures that even with many concurrent chains, the execution remains non-blocking and efficient.
 
 ### Shared Context
 A `Context` object is passed to every step, allowing you to share data across the algorithm's execution:
