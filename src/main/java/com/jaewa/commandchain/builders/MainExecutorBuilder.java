@@ -1,8 +1,18 @@
-package com.jaewa.commandchain;
+package com.jaewa.commandchain.builders;
+
+import com.jaewa.commandchain.CommandExecutor;
 
 public class MainExecutorBuilder extends AbstractExecutorBuilder<MainExecutorBuilder> {
-    protected MainExecutorBuilder(Context context) {
-        super(context);
+
+    private final CommandExecutor commandExecutor;
+
+    public MainExecutorBuilder() {
+        commandExecutor = new CommandExecutor();
+    }
+
+    @Override
+    protected CommandExecutor getCommandExecutor() {
+        return commandExecutor;
     }
 
     /**
@@ -14,6 +24,6 @@ public class MainExecutorBuilder extends AbstractExecutorBuilder<MainExecutorBui
      * @return an instance of {@link CommandExecutor} configured by this builder
      */
     public CommandExecutor build() {
-        return getCommandExecutor();
+        return commandExecutor;
     }
 }

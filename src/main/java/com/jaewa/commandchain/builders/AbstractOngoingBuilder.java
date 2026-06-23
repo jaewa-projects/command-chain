@@ -1,4 +1,4 @@
-package com.jaewa.commandchain;
+package com.jaewa.commandchain.builders;
 
 /**
  * An abstract builder class that extends {@link AbstractExecutorBuilder} and provides a fluent API
@@ -13,8 +13,7 @@ public abstract class AbstractOngoingBuilder<B extends AbstractExecutorBuilder<?
 
     private final P parentBuilder;
 
-    protected AbstractOngoingBuilder(Context ctx, P parentBuilder) {
-        super(ctx);
+    protected AbstractOngoingBuilder(P parentBuilder) {
         this.parentBuilder = parentBuilder;
     }
 

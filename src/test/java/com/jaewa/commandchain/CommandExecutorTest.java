@@ -41,8 +41,8 @@ class CommandExecutorTest {
 
     @BeforeEach
     void setUp() {
+        commandExecutor = new CommandExecutor();
         context = new ContextImpl();
-        commandExecutor = new CommandExecutor(context);
     }
 
     @Test
@@ -62,7 +62,7 @@ class CommandExecutorTest {
         commandExecutor.add("cmd2", command2);
         commandExecutor.setFailureHandler(failureHandler);
 
-        commandExecutor.start().get(5, TimeUnit.SECONDS);
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
         inOrder.verify(command1).execute(context, commandExecutor);
@@ -90,7 +90,7 @@ class CommandExecutorTest {
         commandExecutor.setFailureHandler(failureHandler);
 
         try {
-            commandExecutor.start().get(5, TimeUnit.SECONDS);
+            commandExecutor.start(context).get(5, TimeUnit.SECONDS);
             fail();
         } catch (ExecutionException e) {
             assertEquals(IllegalStateException.class, e.getCause().getClass());
@@ -121,7 +121,7 @@ class CommandExecutorTest {
         commandExecutor.setFailureHandler(failureHandler);
 
         try {
-            commandExecutor.start().get(5, TimeUnit.SECONDS);
+            commandExecutor.start(context).get(5, TimeUnit.SECONDS);
             fail();
         } catch (ExecutionException e) {
             assertEquals(IllegalStateException.class, e.getCause().getClass());
@@ -154,7 +154,7 @@ class CommandExecutorTest {
         commandExecutor.setFailureHandler(failureHandler);
 
         try {
-            commandExecutor.start().get(5, TimeUnit.SECONDS);
+            commandExecutor.start(context).get(5, TimeUnit.SECONDS);
             fail();
         } catch (ExecutionException e) {
             assertEquals(CommandInterruptedException.class, e.getCause().getClass());
@@ -173,7 +173,7 @@ class CommandExecutorTest {
 
         commandExecutor.add("cmd1", command1);
 
-        assertThrows(TimeoutException.class, () -> commandExecutor.start().get(1, TimeUnit.SECONDS));
+        assertThrows(TimeoutException.class, () -> commandExecutor.start(context).get(1, TimeUnit.SECONDS));
     }
 
     @Test
@@ -190,7 +190,7 @@ class CommandExecutorTest {
         commandExecutor.add("cmd1", command1);
         commandExecutor.setFailureHandler(failureHandler);
 
-        assertThrows(TimeoutException.class, () -> commandExecutor.start().get(1, TimeUnit.SECONDS));
+        assertThrows(TimeoutException.class, () -> commandExecutor.start(context).get(1, TimeUnit.SECONDS));
     }
 
     @Test
@@ -215,7 +215,7 @@ class CommandExecutorTest {
         commandExecutor.add("cmd1", command1);
         commandExecutor.add("cmd2", command2);
 
-        commandExecutor.start().get(5, TimeUnit.SECONDS);
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, command3);
         inOrder.verify(command1).execute(context, commandExecutor);
@@ -246,7 +246,7 @@ class CommandExecutorTest {
         commandExecutor.add("cmd1", command1);
         commandExecutor.add("cmd2", command2);
 
-        Future<Void> future = commandExecutor.startContinuous();
+        Future<Void> future = commandExecutor.startContinuous(context);
         future.get(5, TimeUnit.SECONDS);
 
         commandExecutor.add("cmd3", command3);
@@ -279,7 +279,7 @@ class CommandExecutorTest {
             return null;
         }).when(command3).execute(any(), any());
 
-        Future<Void> future = commandExecutor.startContinuous();
+        Future<Void> future = commandExecutor.startContinuous(context);
         future.get(5, TimeUnit.SECONDS);
 
         commandExecutor.add("cmd1", command1);

@@ -1,5 +1,6 @@
 package com.jaewa.commandchain;
 
+import com.jaewa.commandchain.service.ExecutorService;
 import java.awt.EventQueue;
 import javax.swing.SwingUtilities;
 
@@ -40,7 +41,6 @@ public class Commands {
      * to participate as an <code>AsyncCommand</code> in an asynchronous command chain.
      * The returned <code>AsyncCommand</code> executes the provided <code>Command</code> and then
      * progresses or terminates the chain based on the execution outcome.
-     *
      * If the command executes successfully, the chain's <code>CommandChain.next()</code>
      * method is called to proceed to the next command in the chain. If the command throws
      * an exception, the <code>CommandChain.fail(Throwable)</code> method is called with
@@ -66,7 +66,6 @@ public class Commands {
      * to participate as an <code>AsyncCommand</code> in an asynchronous command chain.
      * The returned <code>AsyncCommand</code> executes the provided <code>Runnable</code> and then
      * progresses or terminates the chain based on the execution outcome.
-     *
      * The <code>Runnable.run()</code> method is executed within the asynchronous chain execution
      * context. If the execution completes without throwing exceptions, the chain's
      * <code>CommandChain.next()</code> method is invoked to proceed to the next command.
@@ -149,7 +148,6 @@ public class Commands {
      * to participate as an <code>AsyncFailureHandler</code> in an asynchronous command chain.
      * The returned <code>AsyncFailureHandler</code> executes the provided <code>FailureHandler</code> and then
      * progresses or terminates the chain based on the execution outcome.
-     *
      * If the failure handler executes successfully, the chain's <code>CommandChain.next()</code>
      * method is called to proceed to the next command in the chain. If the failure handler throws
      * an exception, the <code>CommandChain.fail(Throwable)</code> method is called with the exception,
@@ -167,6 +165,25 @@ public class Commands {
             } catch (Exception ex) {
                 chain.fail(ex);
             }
+        };
+    }
+
+    /**
+     * Creates an asynchronous command that executes the given {@code Runnable} without
+     * interrupting the progression of the asynchronous command chain.
+     * This method is typically used to "wiretap" the chain, allowing the provided
+     * {@code Runnable} to execute in parallel with the chain's flow.
+     * The {@code Runnable.run()} method is executed asynchronously, and the chain
+     * invocation proceeds immediately regardless of the completion of the {@code Runnable}.
+     *
+     * @param runnable the {@code Runnable} to be executed alongside the command chain
+     * @return an {@code AsyncCommand} that executes the given {@code Runnable} asynchronously
+     *         without altering the chain's progression
+     */
+    public static AsyncCommand wireTap(Runnable runnable) {
+        return (ctx, chain) -> {
+            ExecutorService.execute(runnable);
+            chain.next();
         };
     }
 
@@ -189,13 +206,5 @@ public class Commands {
             }
         };
     }
-
-    static AsyncCommand wireTap(Runnable runnable) {
-        return (ctx, chain) -> {
-            ExecutorService.execute(runnable);
-            chain.next();
-        };
-    }
-
 
 }

@@ -29,10 +29,21 @@ public interface Loop {
      * Advances the iterative process by updating the current value to the next state.
      * This method typically applies a predefined update or transformation logic to the current state
      * of the iteration, ensuring that the process progresses according to the defined iteration rules.
-     *
      * Implementations of this method are expected to modify internal state variables or other
      * relevant properties in a manner consistent with the loop's progression requirements.
      * Must be invoked only when {@link #hasNext()} returns true to avoid undefined behavior.
      */
     void next();
+
+    /**
+     * Adds a named asynchronous command to the loop. This method is used to register
+     * a command that executes asynchronously and can be invoked as part of the iteration
+     * process within the loop.
+     *
+     * @param name the unique name assigned to the asynchronous command; used to identify
+     *             the command within the loop
+     * @param cmd  the asynchronous command to be added, which defines its execution logic
+     *             and interactions with the loop's context and flow
+     */
+    void add(String name, AsyncCommand cmd);
 }

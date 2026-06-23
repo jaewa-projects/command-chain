@@ -1,16 +1,18 @@
 package com.jaewa.commandchain;
 
+import com.jaewa.commandchain.builders.MainExecutorBuilder;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class TimedLoopTest {
@@ -44,8 +46,7 @@ class TimedLoopTest {
 
     @Test
     void testTimedLoopInChain() throws Exception {
-        Context realContext = new ContextImpl();
-        MainExecutorBuilder builder = new MainExecutorBuilder(realContext);
+        MainExecutorBuilder builder = new MainExecutorBuilder();
 
         AtomicInteger executionCount = new AtomicInteger(0);
         long duration = 200; // 200ms
@@ -60,7 +61,7 @@ class TimedLoopTest {
                 .end()
                 .build();
 
-        executor.start().get(5, TimeUnit.SECONDS);
+        executor.start(context).get(5, TimeUnit.SECONDS);
 
         // Con 200ms di durata e ~50ms per iterazione, ci aspettiamo circa 4 iterazioni
         // (dipende dallo scheduling, ma sicuramente più di zero)

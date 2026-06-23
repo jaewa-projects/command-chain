@@ -1,5 +1,6 @@
 package com.jaewa.commandchain;
 
+import com.jaewa.commandchain.builders.MainExecutorBuilder;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +25,6 @@ class ForLoopTest {
     void testForLoopWithMockedCommand() throws Exception {
         // Costruzione della catena
         MainExecutorBuilder builder = CommandExecutor.builder();
-        Context context = builder.build().getContext();
         AtomicInteger counter = new AtomicInteger(0);
         
         ForLoop<Integer> forLoop = new ForLoop<>(
@@ -54,7 +54,8 @@ class ForLoopTest {
                 .end()
                 .build();
 
-        executor.start().get(5, TimeUnit.SECONDS);
+        Context context = new ContextImpl();
+        executor.start(context).get(5, TimeUnit.SECONDS);
 
         verify(innerCommand, times(3)).execute(eq(context), any());
         
@@ -89,10 +90,11 @@ class ForLoopTest {
                 .end()
                 .build();
 
-        Context mainContext = executor.getContext();
-        executor.start().get(5, TimeUnit.SECONDS);
+        Context context = new ContextImpl();
 
-        assertSame(mainContext, capturedContexts[0]);
-        assertSame(mainContext, capturedContexts[1]);
+        executor.start(context).get(5, TimeUnit.SECONDS);
+
+        assertSame(context, capturedContexts[0]);
+        assertSame(context, capturedContexts[1]);
     }
 }

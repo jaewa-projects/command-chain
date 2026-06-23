@@ -34,6 +34,7 @@ public interface CommandChain {
      * (e.g., {@code fail(Throwable)}) and allows dynamic coordination of dependent
      * tasks in a modular and reusable manner.
      * </p>
+     *
      */
     void next();
 

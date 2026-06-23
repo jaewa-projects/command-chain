@@ -1,5 +1,7 @@
 package com.jaewa.commandchain;
 
+import com.jaewa.commandchain.builders.MainExecutorBuilder;
+import com.jaewa.commandchain.service.ExecutorService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -26,7 +28,7 @@ import static com.jaewa.commandchain.Commands.safe;
  * <p>
  * Command execution is fully asynchronous: each command runs on a separate thread
  * managed by the {@link ExecutorService}. This means that the thread executing a
- * command is different from the thread that invokes the {@link #start()} method,
+ * command is different from the thread that invokes the {@link #start(Context)} method,
  * and also different from the thread that calls {@link CommandChain#next()} or
  * {@link CommandChain#fail(Throwable)} on the CommandChain. This ensures non-blocking
  * execution and allows commands to perform long-running operations without blocking
@@ -66,9 +68,9 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     private CompletableFuture<Void> future;
 
-    private final Context context;
-
     private boolean continuous = false;
+
+    private Context currentContext;
 
     /**
      * Creates and returns a new fluent builder for constructing a {@code CommandExecutor} instance.
@@ -76,12 +78,18 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * @return a new fluent builder instance.
      */
     public static MainExecutorBuilder builder() {
-        return new MainExecutorBuilder(new ContextImpl());
+        return new MainExecutorBuilder();
     }
 
-    CommandExecutor(Context context) {
+    /**
+     * Constructs a new instance of {@code CommandExecutor} with the specified context.
+     * The provided {@code Context} object will be used to manage shared state,
+     * handle interruptions, and facilitate data sharing during the execution
+     * of the command chain.
+     *
+     */
+    public CommandExecutor() {
         this.commands = new ArrayList<>();
-        this.context = context;
     }
 
     /**
@@ -111,12 +119,14 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * commands have been executed, or exceptionally if any command
      * fails or an error occurs.
      *
+     * @param ctx the {@code Context} object to be associated with this {@code CommandExecutor};
+     *            must not be {@code null}
      * @return a {@link CompletableFuture} that completes when the
      * command chain execution is finished, either successfully
      * or with an exception.
      */
-    public CompletableFuture<Void> start() {
-        return startImpl();
+    public CompletableFuture<Void> start(Context ctx) {
+        return startImpl(ctx);
     }
 
     /**
@@ -136,17 +146,22 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * for observing the execution state.
      * </p>
      *
+     * @param ctx the {@code Context} object to be associated with this {@code CommandExecutor};
      * @return a {@link Future} representing the lifecycle of the continuous execution
      * process, enabling control and observation over its asynchronous behavior,
      * such as checking completion or handling interruptions.
      */
-    public Future<Void> startContinuous() {
+    public Future<Void> startContinuous(Context ctx) {
         continuous = true;
-        startImpl();
+        startImpl(ctx);
         return new ContinuousFuture();
     }
 
-    private CompletableFuture<Void> startImpl() {
+    private CompletableFuture<Void> startImpl(Context ctx) {
+        if (ctx == null) {
+            throw new IllegalArgumentException("Context cannot be null");
+        }
+        currentContext = ctx;
         future = new CompletableFuture<>();
         executionIndex = -1;
         failure = null;
@@ -191,14 +206,14 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     private void executeCommandAsync(String name, AsyncCommand cmd) {
         ExecutorService.execute(() -> {
-            cmd.execute(context, this);
+            cmd.execute(currentContext, this);
             log.debug("Command {} executed", name);
         });
     }
 
     @Override
     public void execute(Context ctx, CommandChain chain) {
-        start().thenRun(chain::next)
+        start(ctx).thenRun(chain::next)
                 .exceptionally(e -> {
                     fail(e.getCause() != null ? e.getCause() : e);
                     return null;
@@ -212,7 +227,9 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * commands or operations to stop processing based on the interruption state.
      */
     public void interrupt() {
-        context.interrupt();
+        if (currentContext != null) {
+            currentContext.interrupt();
+        }
     }
 
     /**
@@ -229,14 +246,14 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     /**
      * Retrieves the current execution context associated with this {@code CommandExecutor}.
-     * The context provides the shared state and control mechanisms required for managing
-     * the command execution workflow. It allows storing, retrieving, and manipulating
-     * data while tracking and handling interruptions.
+     * The context provides a shared state for managing data, tracking execution flow,
+     * and handling interruptions across the command chain execution process.
      *
-     * @return the {@code Context} object associated with the current command execution
+     * @return the current {@code Context} instance associated with this {@code CommandExecutor},
+     * or {@code null} if no context is currently set.
      */
-    public Context getContext() {
-        return context;
+    public Context getCurrentContext() {
+        return currentContext;
     }
 
     private class ContinuousFuture implements Future<Void> {

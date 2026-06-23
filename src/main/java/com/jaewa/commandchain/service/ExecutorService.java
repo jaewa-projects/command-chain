@@ -1,4 +1,4 @@
-package com.jaewa.commandchain;
+package com.jaewa.commandchain.service;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -41,7 +41,6 @@ public class ExecutorService {
      * Sets the supplier responsible for creating the executor instance used by the service.
      * This allows customization of the executor implementation, ensuring flexibility
      * in how tasks are executed asynchronously.
-     *
      * Note: Changing the executor supplier affects all subsequent task executions, as it
      * dictates the instance of the executor that will be retrieved. Ensure the new supplier
      * provides a valid and functional {@link Executor} implementation.

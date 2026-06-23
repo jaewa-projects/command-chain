@@ -1,4 +1,13 @@
-package com.jaewa.commandchain;
+package com.jaewa.commandchain.builders;
+
+import com.jaewa.commandchain.AbstractLoop;
+import com.jaewa.commandchain.AsyncCommand;
+import com.jaewa.commandchain.AsyncFailureHandler;
+import com.jaewa.commandchain.Command;
+import com.jaewa.commandchain.CommandExecutor;
+import com.jaewa.commandchain.Commands;
+import com.jaewa.commandchain.FailureHandler;
+import com.jaewa.commandchain.Loop;
 
 /**
  * An abstract builder class that provides a fluent API for constructing and configuring
@@ -9,17 +18,8 @@ package com.jaewa.commandchain;
  */
 public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<?>> {
 
-    private final CommandExecutor commandExecutor;
-
-    private final Context context;
-
-    protected AbstractExecutorBuilder(Context context) {
-        this.context = context;
-        commandExecutor = new CommandExecutor(context);
-    }
-
     @SuppressWarnings("unchecked")
-    private B getThis() {
+    private B self() {
         return (B) this;
     }
 
@@ -32,8 +32,8 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      * @return the current builder instance for chaining method calls
      */
     public B exec(String name, Command cmd) {
-        commandExecutor.add(name, Commands.async(cmd));
-        return getThis();
+        getCommandExecutor().add(name, Commands.async(cmd));
+        return self();
     }
 
     /**
@@ -45,8 +45,8 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      * @return the current builder instance for chaining method calls
      */
     public B exec(String name, AsyncCommand cmd) {
-        commandExecutor.add(name, cmd);
-        return getThis();
+        getCommandExecutor().add(name, cmd);
+        return self();
     }
 
     /**
@@ -59,15 +59,14 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      * @return the current builder instance for chaining method calls
      */
     public B wiretap(String name, Runnable runnable) {
-        commandExecutor.add(name, Commands.wireTap(runnable));
-        return getThis();
+        getCommandExecutor().add(name, Commands.wireTap(runnable));
+        return self();
     }
 
     /**
      * Sets a failure handler to be invoked when an error occurs during the execution
      * of the command chain. This method allows specifying custom failure-handling logic
      * by providing a {@code FailureHandler} implementation.
-     *
      * The failure handler is executed asynchronously in response to exceptions or
      * errors encountered in the execution flow.
      *
@@ -76,8 +75,8 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      * @return the current builder instance for chaining method calls
      */
     public B onFailure(FailureHandler cmd) {
-        commandExecutor.setFailureHandler(Commands.async(cmd));
-        return getThis();
+        getCommandExecutor().setFailureHandler(Commands.async(cmd));
+        return self();
     }
 
     /**
@@ -91,8 +90,8 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      * @return the current builder instance for chaining method calls.
      */
     public B onFailure(AsyncFailureHandler cmd) {
-        commandExecutor.setFailureHandler(cmd);
-        return getThis();
+        getCommandExecutor().setFailureHandler(cmd);
+        return self();
     }
 
     /**
@@ -104,13 +103,11 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      *             and termination logic of the loop
      * @return a builder to further configure the loop executor
      */
-    public LoopExecutorBuilder<B> loop(String name, Loop loop) {
-        LoopExecutorBuilder<B> result = new LoopExecutorBuilder<>(loop, context, getThis());
-        commandExecutor.add(name, result.build());
+    public LoopExecutorBuilder<B> loop(String name, AbstractLoop loop) {
+        LoopExecutorBuilder<B> result = new LoopExecutorBuilder<>(loop, self());
+        getCommandExecutor().add(name, result.build());
         return result;
     }
 
-    protected CommandExecutor getCommandExecutor() {
-        return commandExecutor;
-    }
+    protected abstract CommandExecutor getCommandExecutor();
 }
