@@ -3,7 +3,7 @@ package com.jaewa.commandchain;
 import java.util.HashMap;
 import java.util.Map;
 
-class ContextImpl implements Context {
+public class DefaultContext implements Context {
     private final Map<String, Object> variables = new HashMap<>();
     private boolean interrupted = false;
 

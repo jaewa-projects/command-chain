@@ -64,7 +64,7 @@ executor.add("Dynamic Step Adder", (ctx, chain) -> {
 });
 
 // Start the execution
-executor.start(new ContextImpl());
+executor.start(new DefaultContext());
 ```
 
 ### 2. Manual Loops with `Loop` interface
@@ -90,7 +90,7 @@ executor.add("My Loop", loop);
 
 executor.add("Post Loop", ctx -> System.out.println("Loop finished!"));
 
-executor.start(new ContextImpl());
+executor.start(new DefaultContext());
 ```
 
 ### 3. Command Decorators (`Commands` class)
@@ -124,7 +124,7 @@ In continuous mode, the executor stays alive even after completing all current c
 
 ```java
 CommandExecutor executor = new CommandExecutor();
-executor.startContinuous(new ContextImpl());
+executor.startContinuous(new DefaultContext());
 
 // The executor is now waiting for commands...
 
@@ -157,7 +157,7 @@ CommandExecutor.builder()
         System.out.println("Process completed with: " + data);
     })
     .build()
-    .start(new ContextImpl());
+    .start(new DefaultContext());
 ```
 
 ### 2. Loops and Complex Orchestration
@@ -180,7 +180,7 @@ CommandExecutor.builder()
     .exec("camera close", ctx -> camera.close())
     .onFailure(ex -> System.err.println("Error: " + ex.getMessage()))
     .build()
-    .start(new ContextImpl());
+    .start(new DefaultContext());
 ```
 
 ---

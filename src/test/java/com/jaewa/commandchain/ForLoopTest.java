@@ -54,7 +54,7 @@ class ForLoopTest {
                 .end()
                 .build();
 
-        Context context = new ContextImpl();
+        Context context = new DefaultContext();
         executor.start(context).get(5, TimeUnit.SECONDS);
 
         verify(innerCommand, times(3)).execute(eq(context), any());
@@ -90,7 +90,7 @@ class ForLoopTest {
                 .end()
                 .build();
 
-        Context context = new ContextImpl();
+        Context context = new DefaultContext();
 
         executor.start(context).get(5, TimeUnit.SECONDS);
 

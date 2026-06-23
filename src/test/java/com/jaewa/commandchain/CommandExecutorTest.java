@@ -42,7 +42,7 @@ class CommandExecutorTest {
     @BeforeEach
     void setUp() {
         commandExecutor = new CommandExecutor();
-        context = new ContextImpl();
+        context = new DefaultContext();
     }
 
     @Test
