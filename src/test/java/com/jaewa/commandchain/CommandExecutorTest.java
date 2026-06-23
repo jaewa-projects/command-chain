@@ -1,6 +1,7 @@
 package com.jaewa.commandchain;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.BeforeEach;
@@ -223,7 +224,81 @@ class CommandExecutorTest {
 
         verifyNoMoreInteractions(command1, command2, command3);
     }
-    
+
+    @Test
+    void testStartContinuous() throws ExecutionException, InterruptedException, TimeoutException {
+        doAnswer(invocation -> {
+            CommandExecutor executor = invocation.getArgument(1);
+            executor.next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command3).execute(any(), any());
+
+        commandExecutor.add("cmd1", command1);
+        commandExecutor.add("cmd2", command2);
+
+        Future<Void> future = commandExecutor.startContinuous();
+        future.get(5, TimeUnit.SECONDS);
+
+        commandExecutor.add("cmd3", command3);
+        future.get(5, TimeUnit.SECONDS);
+
+        InOrder inOrder = inOrder(command1, command2, command3);
+        inOrder.verify(command1).execute(context, commandExecutor);
+        inOrder.verify(command2).execute(context, commandExecutor);
+        inOrder.verify(command3).execute(context, commandExecutor);
+
+        verifyNoMoreInteractions(command1, command2, command3);
+
+    }
+
+    @Test
+    void testStartContinuousEmpty() throws ExecutionException, InterruptedException, TimeoutException {
+        doAnswer(invocation -> {
+            CommandExecutor executor = invocation.getArgument(1);
+            executor.next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command3).execute(any(), any());
+
+        Future<Void> future = commandExecutor.startContinuous();
+        future.get(5, TimeUnit.SECONDS);
+
+        commandExecutor.add("cmd1", command1);
+        commandExecutor.add("cmd2", command2);
+        future.get(5, TimeUnit.SECONDS);
+
+        commandExecutor.add("cmd3", command3);
+        future.get(5, TimeUnit.SECONDS);
+
+        InOrder inOrder = inOrder(command1, command2, command3);
+        inOrder.verify(command1).execute(context, commandExecutor);
+        inOrder.verify(command2).execute(context, commandExecutor);
+        inOrder.verify(command3).execute(context, commandExecutor);
+
+        verifyNoMoreInteractions(command1, command2, command3);
+
+    }
+
+
     
 
 }

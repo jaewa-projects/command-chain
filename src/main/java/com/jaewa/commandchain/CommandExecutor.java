@@ -3,6 +3,10 @@ package com.jaewa.commandchain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +68,8 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     private final Context context;
 
+    private boolean continuous = false;
+
     /**
      * Creates and returns a new fluent builder for constructing a {@code CommandExecutor} instance.
      *
@@ -87,6 +93,12 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      */
     public synchronized void add(String name, AsyncCommand cmd) {
         commands.add(ImmutablePair.of(name, interruptible(safe(cmd))));
+        if (continuous && future.isDone()) {
+            executionIndex--;
+            future = new CompletableFuture<>();
+            failure = null;
+            next();
+        }
     }
 
     /**
@@ -94,22 +106,54 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * This method initializes necessary state variables, begins
      * the processing of commands in the queue, and returns a
      * {@link CompletableFuture} that represents the asynchronous
-     * execution of the command chain. If all commands execute
-     * successfully, the future will complete normally. If any
-     * command fails or an error occurs, the future will complete
-     * exceptionally with the corresponding failure.
+     * execution of the command chain. The future completes each time
+     * the CommandExecutor completes, either successfully when all
+     * commands have been executed, or exceptionally if any command
+     * fails or an error occurs.
      *
      * @return a {@link CompletableFuture} that completes when the
      * command chain execution is finished, either successfully
      * or with an exception.
      */
     public CompletableFuture<Void> start() {
+        return startImpl();
+    }
+
+    /**
+     * Initiates the executor in continuous mode, allowing the command
+     * execution process to operate persistently and continuously without stopping.
+     * This method sets the internal state for continuous operation and begins the
+     * execution workflow by invoking the implementation-specific logic.
+     *
+     * <p>
+     * In continuous mode, when a new command is added via {@link #add(String, AsyncCommand)}
+     * after the previous execution has completed (i.e., the future is done), the internal
+     * future is reset. This means it is no longer in a done state and becomes a new
+     * {@link Future} that can be used to track the completion of the newly
+     * added commands. This reset behavior occurs automatically every time a command is
+     * added when the previous execution cycle has finished, allowing the executor to
+     * seamlessly restart and process the new commands while providing a fresh future
+     * for observing the execution state.
+     * </p>
+     *
+     * @return a {@link Future} representing the lifecycle of the continuous execution
+     * process, enabling control and observation over its asynchronous behavior,
+     * such as checking completion or handling interruptions.
+     */
+    public Future<Void> startContinuous() {
+        continuous = true;
+        startImpl();
+        return new ContinuousFuture();
+    }
+
+    private CompletableFuture<Void> startImpl() {
         future = new CompletableFuture<>();
         executionIndex = -1;
         failure = null;
         next();
         return future;
     }
+
 
     @Override
     public synchronized void next() {
@@ -193,5 +237,33 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      */
     public Context getContext() {
         return context;
+    }
+
+    private class ContinuousFuture implements Future<Void> {
+
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            return future.cancel(mayInterruptIfRunning);
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return future.isCancelled();
+        }
+
+        @Override
+        public boolean isDone() {
+            return future.isDone();
+        }
+
+        @Override
+        public Void get() throws InterruptedException, ExecutionException {
+            return future.get();
+        }
+
+        @Override
+        public Void get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+            return future.get(timeout, unit);
+        }
     }
 }

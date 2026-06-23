@@ -148,6 +148,23 @@ executor.start();
 // Execution sequence: Step 1 -> Step 2 -> Dynamic Step
 ```
 
+### 4. Continuous Execution Mode
+In continuous mode, the executor stays alive even after completing all current commands. When new commands are added via `add()`, the execution resumes automatically. This is ideal for long-running services or reactive background workers.
+
+```java
+CommandExecutor executor = CommandExecutor.builder()
+    .exec("Initial Task", ctx -> System.out.println("Processing initial data..."))
+    .build();
+
+// Start in continuous mode
+executor.startContinuous();
+
+// Later, perhaps in response to an external event
+executor.add("On-demand Task", ctx -> {
+    System.out.println("Processing dynamic request!");
+});
+```
+
 ---
 
 ## Technical Details
