@@ -282,7 +282,72 @@ class CommandExecutorTest {
 
     }
 
+    @Test
+    void testPipelineBuilderReexecution() throws Exception {
 
-    
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
+
+        commandExecutor = CommandExecutor.pipelineBuilder()
+                        .exec("cmd1", command1)
+                        .exec("cmd2", command2)
+                        .build();
+
+        // First execution
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
+
+        // Second execution
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
+
+        InOrder inOrder = inOrder(command1, command2);
+        // First execution
+        inOrder.verify(command1).execute(context, commandExecutor);
+        inOrder.verify(command2).execute(context, commandExecutor);
+        // Second execution
+        inOrder.verify(command1).execute(context, commandExecutor);
+        inOrder.verify(command2).execute(context, commandExecutor);
+
+        verifyNoMoreInteractions(command1, command2);
+    }
+
+    @Test
+    void testQueueBuilderNoReexecution() throws Exception {
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
+
+        commandExecutor = CommandExecutor.queueBuilder()
+                        .exec("cmd1", command1)
+                        .exec("cmd2", command2)
+                        .build();
+
+        // First execution
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
+
+        // Second execution
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
+
+        InOrder inOrder = inOrder(command1, command2);
+        // Only first execution
+        inOrder.verify(command1).execute(context, commandExecutor);
+        inOrder.verify(command2).execute(context, commandExecutor);
+
+        verifyNoMoreInteractions(command1, command2);
+    }
+
 
 }
