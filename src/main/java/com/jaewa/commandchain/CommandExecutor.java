@@ -2,14 +2,12 @@ package com.jaewa.commandchain;
 
 import com.jaewa.commandchain.builders.MainExecutorBuilder;
 import com.jaewa.commandchain.service.ExecutorService;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,11 +56,7 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     private static final Logger log = LoggerFactory.getLogger(CommandExecutor.class);
 
-    private final List<ImmutablePair<String, AsyncCommand>> commands;
-
     private AsyncFailureHandler failureHandler;
-
-    private int executionIndex = -1;
 
     private Throwable failure = null;
 
@@ -71,6 +65,8 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
     private boolean continuous = false;
 
     private Context currentContext;
+
+    private final CommandSource commandSource;
 
     /**
      * Creates and returns a new fluent builder for constructing a {@code CommandExecutor} instance.
@@ -89,7 +85,11 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      *
      */
     public CommandExecutor() {
-        this.commands = new ArrayList<>();
+        this.commandSource = new CommandPipeline();
+    }
+
+    public CommandExecutor(CommandSource commandSource) {
+        this.commandSource = commandSource;
     }
 
     /**
@@ -100,9 +100,8 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * @param cmd  the asynchronous command to be added
      */
     public synchronized void add(String name, AsyncCommand cmd) {
-        commands.add(ImmutablePair.of(name, interruptible(safe(cmd))));
+        commandSource.add(name, interruptible(safe(cmd)));
         if (continuous && future.isDone()) {
-            executionIndex--;
             future = new CompletableFuture<>();
             failure = null;
             next();
@@ -163,7 +162,7 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
         }
         currentContext = ctx;
         future = new CompletableFuture<>();
-        executionIndex = -1;
+        commandSource.init();
         failure = null;
         next();
         return future;
@@ -176,14 +175,11 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
             future.completeExceptionally(failure);
             return;
         }
-        ImmutablePair<String, AsyncCommand> cmdPair = null;
-        executionIndex++;
-        if (executionIndex < commands.size()) {
-            cmdPair = commands.get(executionIndex);
-        }
+        Pair<String, AsyncCommand> cmdPair = commandSource.next();
+
         if (cmdPair != null) {
-            log.info("Executing command: {}", cmdPair.left);
-            executeCommandAsync(cmdPair.left, cmdPair.right);
+            log.info("Executing command: {}", cmdPair.getLeft());
+            executeCommandAsync(cmdPair.getLeft(), cmdPair.getRight());
         } else {
             future.complete(null);
         }
