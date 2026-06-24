@@ -33,17 +33,30 @@ Add the following dependency to your `pom.xml`:
 
 For complete control, you can instantiate `CommandExecutor` manually. This approach is particularly useful for adding commands dynamically, managing long-running processes, or building custom iterative logic.
 
-### 1. Manual Creation and Dynamic Commands
-You can create an executor and add commands as needed. Commands can be added even while the executor is running, allowing the algorithm to adapt based on runtime data.
+### 1. Command Sources: Pipeline vs Queue
+The library supports two main types of `CommandSource` that define how commands are managed within the executor:
+
+- **CommandPipeline (Default)**: Commands remain in the collection after being executed. This is ideal if you need to re-initialize the chain and run the same sequence multiple times.
+- **CommandQueue**: Commands are removed from the collection once they are executed. This is perfect for producers-consumers scenarios or long-running workers where commands are processed and discarded.
+
+### 2. Manual Creation and Dynamic Commands
+You can create an executor specifying the desired `CommandSource`. If no source is provided, it defaults to a `CommandPipeline`.
 
 ```java
 import com.jaewa.commandchain.CommandExecutor;
+import com.jaewa.commandchain.CommandPipeline;
+import com.jaewa.commandchain.CommandQueue;
 import static com.jaewa.commandchain.Commands.*;
 
-CommandExecutor executor = new CommandExecutor();
+// Create a pipeline-based executor (default)
+CommandExecutor pipelineExecutor = new CommandExecutor(new CommandPipeline());
+// Or simply: CommandExecutor pipelineExecutor = new CommandExecutor();
+
+// Create a queue-based executor
+CommandExecutor queueExecutor = new CommandExecutor(new CommandQueue());
 
 // Add an asynchronous command
-executor.add("Async Step", (ctx, chain) -> {
+pipelineExecutor.add("Async Step", (ctx, chain) -> {
     System.out.println("Starting async work...");
     CompletableFuture.runAsync(() -> {
         // Simulate external work
@@ -51,23 +64,9 @@ executor.add("Async Step", (ctx, chain) -> {
         chain.next(); // Explicitly move to the next step
     });
 });
-
-// Add a synchronous command (automatically advances)
-executor.add("Sync Step", ctx -> {
-    System.out.println("Executing synchronous step");
-});
-
-// Commands can also be added while running
-executor.add("Dynamic Step Adder", (ctx, chain) -> {
-    executor.add("Late Arrival", ctx2 -> System.out.println("I was added late!"));
-    chain.next();
-});
-
-// Start the execution
-executor.start(new DefaultContext());
 ```
 
-### 2. Manual Loops with `Loop` interface
+### 3. Manual Loops with `Loop` interface
 You can use loop constructs like `ForLoop` or `TimedLoop` directly with the `CommandExecutor`. Each loop is itself an `AsyncCommand` that can contain its own chain of commands via the `add()` method.
 
 ```java
@@ -143,19 +142,19 @@ executor.add("Async Request", (ctx, chain) -> {
 
 ## Fluent Builder API
 
-The library provides a fluent builder to compose complex algorithm chains, including loops and centralized failure handling.
+The library provides a fluent builder to compose complex algorithm chains, including loops and centralized failure handling. You can choose between a pipeline-based builder or a queue-based builder.
 
 ### 1. Simple Linear Chain
 ```java
-CommandExecutor.builder()
+// Pipeline builder (Default source): Commands are preserved
+CommandExecutor.pipelineBuilder()
     .exec("Initialization", ctx -> System.out.println("Starting..."))
-    .exec("Data loading", ctx -> {
-        ctx.set("data", "Important value");
-    })
-    .exec("Finish", ctx -> {
-        String data = ctx.get("data", String.class);
-        System.out.println("Process completed with: " + data);
-    })
+    .build()
+    .start(new DefaultContext());
+
+// Queue builder: Commands are consumed
+CommandExecutor.queueBuilder()
+    .exec("One-time task", ctx -> System.out.println("Executing..."))
     .build()
     .start(new DefaultContext());
 ```
