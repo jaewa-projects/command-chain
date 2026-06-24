@@ -22,8 +22,7 @@ class ForLoopTest {
     private AsyncCommand innerCommand;
 
     @Test
-    void testForLoopWithMockedCommand() throws Exception {
-        // Costruzione della catena
+    void testForLoop() throws Exception {
         MainExecutorBuilder builder = CommandExecutor.builder();
         AtomicInteger counter = new AtomicInteger(0);
         
@@ -34,12 +33,10 @@ class ForLoopTest {
                 val -> val + 1
         );
 
-        // Mock del comportamento del comando interno: deve chiamare next()
         doAnswer(invocation -> {
             Context ctx = invocation.getArgument(0);
             CommandChain chain = invocation.getArgument(1);
             
-            // Possiamo verificare il valore del contatore nel contesto
             ForLoop<?> loop = ctx.get("counter", ForLoop.class);
             assertEquals(counter.getAndIncrement(), loop.getValue());
 
@@ -47,7 +44,6 @@ class ForLoopTest {
             return null;
         }).when(innerCommand).execute(any(), any());
 
-        // Costruzione della catena
         CommandExecutor executor = builder
                 .loop("myLoop", forLoop)
                     .exec("innerCmd", innerCommand)
@@ -63,6 +59,44 @@ class ForLoopTest {
         inOrder.verify(innerCommand, times(3)).execute(eq(context), any());
         
         assertEquals(3, forLoop.getValue());
+    }
+
+    @Test
+    void testForLoopWithInnerFor() throws Exception {
+        MainExecutorBuilder builder = CommandExecutor.builder();
+
+        ForLoop<Integer> outerLoop = new ForLoop<>(
+                "counter",
+                () -> 0,
+                val -> val < 3,
+                val -> val + 1
+        );
+        ForLoop<Integer> innterLoop = new ForLoop<>(
+                "counter",
+                () -> 0,
+                val -> val < 2,
+                val -> val + 1
+        );
+
+        doAnswer(invocation -> {
+            CommandChain chain = invocation.getArgument(1);
+            chain.next();
+            return null;
+        }).when(innerCommand).execute(any(), any());
+
+        CommandExecutor executor = builder
+                .loop("outerLoop", outerLoop)
+                    .loop("innerLoop", innterLoop)
+                        .exec("innerCmd", innerCommand)
+                    .end()
+                .end()
+                .build();
+
+        Context context = new DefaultContext();
+        executor.start(context).get(5, TimeUnit.SECONDS);
+
+        verify(innerCommand, times(6)).execute(eq(context), any());
+
     }
 
     @Test

@@ -9,6 +9,7 @@ target/
 *.iws
 *.iml
 *.ipr
+.junie/
 
 ### Eclipse ###
 .apt_generated

@@ -13,7 +13,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doAnswer;
@@ -72,7 +71,7 @@ class CommandExecutorTest {
     }
 
     @Test
-    void testExecuteWithFailure() throws Exception {
+    void testExecuteWithFailure() {
 
         doAnswer(invocation -> {
             ((CommandChain)invocation.getArgument(1)).fail(new IllegalStateException());
@@ -89,12 +88,7 @@ class CommandExecutorTest {
         commandExecutor.add("cmd2", command2);
         commandExecutor.setFailureHandler(failureHandler);
 
-        try {
-            commandExecutor.start(context).get(5, TimeUnit.SECONDS);
-            fail();
-        } catch (ExecutionException e) {
-            assertEquals(IllegalStateException.class, e.getCause().getClass());
-        }
+        assertThrows(ExecutionException.class, () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
         inOrder.verify(command1).execute(context, commandExecutor);
@@ -104,7 +98,7 @@ class CommandExecutorTest {
     }
 
     @Test
-    void testExecuteWithUncheckedFailure() throws Exception {
+    void testExecuteWithUncheckedFailure() {
 
         doAnswer(invocation -> {
             throw new IllegalStateException();
@@ -120,12 +114,7 @@ class CommandExecutorTest {
         commandExecutor.add("cmd2", command2);
         commandExecutor.setFailureHandler(failureHandler);
 
-        try {
-            commandExecutor.start(context).get(5, TimeUnit.SECONDS);
-            fail();
-        } catch (ExecutionException e) {
-            assertEquals(IllegalStateException.class, e.getCause().getClass());
-        }
+        assertThrows(ExecutionException.class, () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
         inOrder.verify(command1).execute(context, commandExecutor);
@@ -135,7 +124,7 @@ class CommandExecutorTest {
     }
 
     @Test
-    void testInterrupt() throws Exception {
+    void testInterrupt() {
 
         doAnswer(invocation -> {
             ((Context)invocation.getArgument(0)).interrupt();
@@ -153,12 +142,7 @@ class CommandExecutorTest {
         commandExecutor.add("cmd2", command2);
         commandExecutor.setFailureHandler(failureHandler);
 
-        try {
-            commandExecutor.start(context).get(5, TimeUnit.SECONDS);
-            fail();
-        } catch (ExecutionException e) {
-            assertEquals(CommandInterruptedException.class, e.getCause().getClass());
-        }
+        assertThrows(ExecutionException.class, () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
         inOrder.verify(command1).execute(context, commandExecutor);

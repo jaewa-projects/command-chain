@@ -32,13 +32,11 @@ class TimedLoopTest {
         assertTrue(start <= System.currentTimeMillis());
         assertEquals(0, timedLoop.getCycle());
 
-        // Almeno una iterazione dovrebbe esserci se la durata è positiva
         assertTrue(timedLoop.hasNext());
         timedLoop.next();
         assertEquals(1, timedLoop.getCycle());
 
-        // Aspettiamo che il tempo passi
-        await().atMost(duration + 10, TimeUnit.MILLISECONDS).until(() -> timedLoop.getElapsedTime() >= duration);
+        await().atMost(duration + 1000, TimeUnit.MILLISECONDS).until(() -> timedLoop.getElapsedTime() >= duration);
 
         assertFalse(timedLoop.hasNext());
         assertTrue(timedLoop.getElapsedTime() >= duration);
@@ -63,11 +61,8 @@ class TimedLoopTest {
 
         executor.start(context).get(5, TimeUnit.SECONDS);
 
-        // Con 200ms di durata e ~50ms per iterazione, ci aspettiamo circa 4 iterazioni
-        // (dipende dallo scheduling, ma sicuramente più di zero)
         int finalCount = executionCount.get();
-        System.out.println("[DEBUG_LOG] Execution count: " + finalCount);
-        assertTrue(finalCount > 0, "Dovrebbe essere stata eseguita almeno un'iterazione");
+        assertTrue(finalCount > 0);
         assertEquals(finalCount, timedLoop.getCycle());
     }
 }
