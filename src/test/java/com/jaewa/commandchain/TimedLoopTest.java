@@ -44,7 +44,7 @@ class TimedLoopTest {
 
     @Test
     void testTimedLoopInChain() throws Exception {
-        MainExecutorBuilder builder = new MainExecutorBuilder();
+        MainExecutorBuilder builder = new MainExecutorBuilder(new CommandPipeline());
 
         AtomicInteger executionCount = new AtomicInteger(0);
         long duration = 200; // 200ms

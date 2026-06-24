@@ -38,7 +38,7 @@ import static com.jaewa.commandchain.Commands.safe;
  * It also allows handling failures through an optional failure handler.
  * </p>
  * <p>
- * To create a CommandExecutor instance, use the {@link #builder()} method, which returns
+ * To create a CommandExecutor instance, use the {@link #pipelineBuilder()} or {@link #queueBuilder()} methods, which return
  * a builder with a fluent API for configuring and constructing the executor.
  * </p>
  *
@@ -68,13 +68,29 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     private final CommandSource commandSource;
 
+
     /**
-     * Creates and returns a new fluent builder for constructing a {@code CommandExecutor} instance.
+     * Creates and returns a builder for constructing a {@link MainExecutorBuilder} instance.
+     * This method initializes a new {@link CommandPipeline} as the command source for the builder.
+     * The returned builder can be used to configure and construct a {@code CommandExecutor}
+     * capable of managing and executing a sequence of asynchronous commands.
      *
-     * @return a new fluent builder instance.
+     * @return an instance of {@link MainExecutorBuilder} initialized with a new {@link CommandPipeline}
      */
-    public static MainExecutorBuilder builder() {
-        return new MainExecutorBuilder();
+    public static MainExecutorBuilder pipelineBuilder() {
+        return new MainExecutorBuilder(new CommandPipeline());
+    }
+
+    /**
+     * Creates and returns a builder for constructing a {@link MainExecutorBuilder} instance.
+     * This method initializes a new {@link CommandQueue} as the command source for the builder.
+     * The returned builder can be used to configure and construct a {@code CommandExecutor}
+     * capable of managing and executing a sequence of asynchronous commands in a queued manner.
+     *
+     * @return an instance of {@link MainExecutorBuilder} initialized with a new {@link CommandQueue}
+     */
+    public static MainExecutorBuilder queueBuilder() {
+        return new MainExecutorBuilder(new CommandQueue());
     }
 
     /**

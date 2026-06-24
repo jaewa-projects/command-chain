@@ -23,7 +23,7 @@ class ForLoopTest {
 
     @Test
     void testForLoop() throws Exception {
-        MainExecutorBuilder builder = CommandExecutor.builder();
+        MainExecutorBuilder builder = CommandExecutor.pipelineBuilder();
         AtomicInteger counter = new AtomicInteger(0);
         
         ForLoop<Integer> forLoop = new ForLoop<>(
@@ -63,7 +63,7 @@ class ForLoopTest {
 
     @Test
     void testForLoopWithInnerFor() throws Exception {
-        MainExecutorBuilder builder = CommandExecutor.builder();
+        MainExecutorBuilder builder = CommandExecutor.pipelineBuilder();
 
         ForLoop<Integer> outerLoop = new ForLoop<>(
                 "counter",
@@ -101,7 +101,7 @@ class ForLoopTest {
 
     @Test
     void testContextConsistency() throws Exception {
-        MainExecutorBuilder builder = CommandExecutor.builder();
+        MainExecutorBuilder builder = CommandExecutor.pipelineBuilder();
 
         final Context[] capturedContexts = new Context[2];
 
