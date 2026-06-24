@@ -2,12 +2,28 @@ package com.jaewa.commandchain;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
+
+/**
+ * Represents a pipeline for managing and executing a sequence of asynchronous commands.
+ * The CommandPipeline class implements the CommandSource interface and provides mechanisms
+ * to add commands, initialize the pipeline, and iterate through the commands sequentially.
+ * This class maintains an internal list of commands with their associated names, and allows
+ * the commands to be executed in the order they were added.
+ *
+ * <p><b>Important:</b> Commands remain in the pipeline after execution and are not removed.
+ * This behavior differs from CommandQueue, where commands are removed after execution.
+ * The pipeline can be re-initialized using {@code init()} to reset the execution index
+ * and iterate through the same commands again.</p>
+ *
+ * The pipeline is initialized by calling the {@code init()} method, which resets
+ * the internal execution index. Commands can then be retrieved one by one using the {@code next()}
+ * method, which returns a name-command pair or {@code null} if no more commands are available.
+ */
 public class CommandPipeline implements CommandSource {
 
-    private final List<ImmutablePair<String, AsyncCommand>> commands;
+    private final List<Pair<String, AsyncCommand>> commands;
 
     private int executionIndex = -1;
 
@@ -17,7 +33,7 @@ public class CommandPipeline implements CommandSource {
 
     @Override
     public void add(String commandName, AsyncCommand command) {
-        this.commands.add(new ImmutablePair<>(commandName, command));
+        this.commands.add(Pair.of(commandName, command));
     }
 
     @Override

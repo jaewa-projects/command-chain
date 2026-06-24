@@ -2,6 +2,7 @@ package com.jaewa.commandchain;
 
 import com.jaewa.commandchain.service.ExecutorService;
 import java.awt.EventQueue;
+import java.util.concurrent.CompletableFuture;
 import javax.swing.SwingUtilities;
 
 
@@ -59,6 +60,30 @@ public class Commands {
                 chain.fail(e);
             }
         };
+    }
+
+    /**
+     * Creates an {@code AsyncCommand} that wraps the provided {@code CompletableFuture}.
+     * The returned asynchronous command participates in the asynchronous command execution chain.
+     * Upon completion of the given future, the chain either progresses to the next command or fails,
+     * depending on whether the future completed successfully or exceptionally.
+     * If the future completes normally, the chain's {@code CommandChain.next()} method is invoked
+     * to proceed to the next command. If the future completes with an exception, the chain's
+     * {@code CommandChain.fail(Throwable)} method is invoked with the exception.
+     *
+     * @param future the {@code CompletableFuture} whose completion determines the execution flow
+     *               in the asynchronous command chain
+     * @return an {@code AsyncCommand} that integrates the given {@code CompletableFuture} into
+     *         the asynchronous command chain
+     */
+    public static AsyncCommand async(CompletableFuture<?> future) {
+        return (ctx, chain) -> future.whenComplete((v, e) -> {
+            if (e != null) {
+                chain.fail(e);
+            } else {
+                chain.next();
+            }
+        });
     }
 
     /**
