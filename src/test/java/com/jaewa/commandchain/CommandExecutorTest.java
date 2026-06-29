@@ -1,5 +1,6 @@
 package com.jaewa.commandchain;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -11,13 +12,20 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
@@ -388,6 +396,134 @@ class CommandExecutorTest {
         inOrder.verify(command2).execute(context, commandExecutor);
 
         verifyNoMoreInteractions(command1, command2);
+    }
+
+    @Test
+    void testConstructors() {
+        CommandExecutor executor1 = new CommandExecutor();
+        assertNotNull(executor1);
+        
+        CommandSource source = mock(CommandSource.class);
+        CommandExecutor executor2 = new CommandExecutor(source);
+        assertNotNull(executor2);
+    }
+
+    @Test
+    void testStartWithNullContext() {
+        CommandExecutor executor = new CommandExecutor();
+        assertThrows(IllegalArgumentException.class, () -> executor.start(null));
+    }
+
+    @Test
+    void testFailTwice() {
+        CommandExecutor executor = CommandExecutor.pipelineBuilder()
+                .exec("cmd1", (ctx, chain) -> {
+                    // non chiamando next() o fail() teniamo il comando "appeso"
+                })
+                .build();
+        CompletableFuture<Void> future = executor.start(context);
+        
+        Exception ex1 = new RuntimeException("Error 1");
+        Exception ex2 = new RuntimeException("Error 2");
+        
+        executor.fail(ex1);
+        executor.fail(ex2);
+        
+        // Verifichiamo direttamente il future restituito da start
+        ExecutionException ee = assertThrows(ExecutionException.class, () -> future.get(1, TimeUnit.SECONDS));
+        assertEquals(ex1, ee.getCause());
+    }
+
+    @Test
+    void testInterruptMethod() {
+        Context mockContext = mock(Context.class);
+        CommandExecutor executor = new CommandExecutor();
+        
+        // Test interrupt with null context
+        executor.interrupt(); // Should not throw exception
+        
+        executor.start(mockContext);
+        
+        executor.interrupt();
+        verify(mockContext).interrupt();
+    }
+
+    @Test
+    void testGetCurrentContext() {
+        CommandExecutor executor = new CommandExecutor();
+        assertNull(executor.getCurrentContext());
+        
+        executor.start(context);
+        assertEquals(context, executor.getCurrentContext());
+    }
+
+    @Test
+    void testExecuteAsAsyncCommand() {
+        CommandChain mockChain = mock(CommandChain.class);
+        doAnswer(invocation -> {
+            ((CommandChain)invocation.getArgument(1)).next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        CommandExecutor executor = CommandExecutor.pipelineBuilder()
+                .exec("cmd1", command1)
+                .build();
+        
+        executor.execute(context, mockChain);
+        
+        verify(mockChain, org.mockito.Mockito.timeout(1000)).next();
+    }
+
+    @Test
+    void testExecuteAsAsyncCommandFailure() {
+        CommandChain mockChain = mock(CommandChain.class);
+        Exception ex = new RuntimeException("Fail");
+        
+        // Creiamo un executor manuale che fallisce
+        CommandExecutor executor = new CommandExecutor() {
+            @Override
+            public CompletableFuture<Void> start(Context ctx) {
+                CompletableFuture<Void> f = new CompletableFuture<>();
+                // Il completamento eccezionale con ex (non avvolto) 
+                // fa sì che e.getCause() in execute sia null
+                f.completeExceptionally(ex);
+                return f;
+            }
+            
+            @Override
+            public void fail(Throwable t) {
+                // Il metodo execute chiama fail(e.getCause() != null ? e.getCause() : e)
+                mockChain.fail(t);
+            }
+        };
+        
+        executor.execute(context, mockChain);
+        
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(mockChain).fail(ex));
+    }
+
+    @Test
+    void testContinuousFutureDelegation() throws Exception {
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        CommandExecutor executor = CommandExecutor.pipelineBuilder()
+                .exec("cmd1", command1)
+                .build();
+        
+        Future<Void> future = executor.startContinuous(context);
+        
+        assertFalse(future.isCancelled());
+        future.get(5, TimeUnit.SECONDS);
+        assertTrue(future.isDone());
+        
+        // Test cancel
+        executor.add("cmd1", command1);
+        assertFalse(future.isDone());
+        future.cancel(true);
+        assertTrue(future.isCancelled());
     }
 
 
