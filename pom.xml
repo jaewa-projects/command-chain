@@ -18,12 +18,12 @@
 
     <distributionManagement>
         <repository>
-            <id>gitlab.jaewa.libs</id>
-            <url>https://gitlab.com/api/v4/projects/83092115/packages/maven</url>
+            <id>jaewa-gitlab-maven</id>
+            <url>https://gitlab.jaewa.com/api/v4/projects/4/packages/maven</url>
         </repository>
         <snapshotRepository>
-            <id>gitlab.jaewa.libs</id>
-            <url>https://gitlab.com/api/v4/projects/83092115/packages/maven</url>
+            <id>jaewa-gitlab-maven</id>
+            <url>https://gitlab.jaewa.com/api/v4/projects/4/packages/maven</url>
         </snapshotRepository>
     </distributionManagement>
 
