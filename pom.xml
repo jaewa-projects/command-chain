@@ -27,7 +27,6 @@
         </snapshotRepository>
     </distributionManagement>
 
-
     <dependencies>
 
         <dependency>
