@@ -141,7 +141,6 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * or with an exception.
      */
     public CompletableFuture<Void> start(Context ctx) {
-        return startImpl(ctx);
     }
 
     /**
