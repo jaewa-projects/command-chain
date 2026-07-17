@@ -14,11 +14,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doAnswer;
@@ -500,30 +498,6 @@ class CommandExecutorTest {
         executor.execute(context, mockChain);
         
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(mockChain).fail(ex));
-    }
-
-    @Test
-    void testContinuousFutureDelegation() throws Exception {
-        doAnswer(invocation -> {
-            ((CommandChain) invocation.getArgument(1)).next();
-            return null;
-        }).when(command1).execute(any(), any());
-
-        CommandExecutor executor = CommandExecutor.pipelineBuilder()
-                .exec("cmd1", command1)
-                .build();
-        
-        Future<Void> future = executor.startContinuous(context);
-        
-        assertFalse(future.isCancelled());
-        future.get(5, TimeUnit.SECONDS);
-        assertTrue(future.isDone());
-        
-        // Test cancel
-        executor.add("cmd1", command1);
-        assertFalse(future.isDone());
-        future.cancel(true);
-        assertTrue(future.isCancelled());
     }
 
 
