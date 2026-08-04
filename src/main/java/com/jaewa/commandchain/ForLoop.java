@@ -45,7 +45,6 @@ public class ForLoop<T> extends AbstractLoop {
      * @param initializer a {@link Supplier} that provides the initial value of the loop variable
      * @param condition   a {@link Predicate} that evaluates whether the loop should continue iterating
      * @param updater     a {@link UnaryOperator} that updates the loop variable after each iteration
-     * @param <T>         the type of the loop variable managed by this ForLoop implementation
      */
     public ForLoop(String varName, Supplier<T> initializer, Predicate<T> condition, UnaryOperator<T> updater) {
         super(varName);

@@ -209,6 +209,30 @@ class CommandsTest {
     }
 
     @Test
+    void testConditionalTrue() {
+        AsyncCommand trueCommand = mock(AsyncCommand.class);
+        AsyncCommand falseCommand = mock(AsyncCommand.class);
+        
+        AsyncCommand conditional = Commands.conditional(ctx -> true, trueCommand, falseCommand);
+        conditional.execute(context, chain);
+        
+        verify(trueCommand).execute(context, chain);
+        verify(falseCommand, never()).execute(any(), any());
+    }
+
+    @Test
+    void testConditionalFalse() {
+        AsyncCommand trueCommand = mock(AsyncCommand.class);
+        AsyncCommand falseCommand = mock(AsyncCommand.class);
+        
+        AsyncCommand conditional = Commands.conditional(ctx -> false, trueCommand, falseCommand);
+        conditional.execute(context, chain);
+        
+        verify(falseCommand).execute(context, chain);
+        verify(trueCommand, never()).execute(any(), any());
+    }
+
+    @Test
     void testConstructorIsPrivate() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
         Constructor<Commands> constructor = Commands.class.getDeclaredConstructor();
         assertTrue(java.lang.reflect.Modifier.isPrivate(constructor.getModifiers()));

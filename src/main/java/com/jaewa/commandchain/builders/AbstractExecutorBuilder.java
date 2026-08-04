@@ -6,8 +6,10 @@ import com.jaewa.commandchain.AsyncFailureHandler;
 import com.jaewa.commandchain.Command;
 import com.jaewa.commandchain.CommandExecutor;
 import com.jaewa.commandchain.Commands;
+import com.jaewa.commandchain.Context;
 import com.jaewa.commandchain.FailureHandler;
 import com.jaewa.commandchain.Loop;
+import java.util.function.Predicate;
 
 /**
  * An abstract builder class that provides a fluent API for constructing and configuring
@@ -105,6 +107,12 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      */
     public LoopExecutorBuilder<B> loop(String name, AbstractLoop loop) {
         LoopExecutorBuilder<B> result = new LoopExecutorBuilder<>(loop, self());
+        getCommandExecutor().add(name, result.build());
+        return result;
+    }
+
+    public IfExecutorBuilder<B> ifCondition(String name, Predicate<Context> condition) {
+        IfExecutorBuilder<B> result = new IfExecutorBuilder<>(condition, self());
         getCommandExecutor().add(name, result.build());
         return result;
     }

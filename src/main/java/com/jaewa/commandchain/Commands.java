@@ -3,6 +3,7 @@ package com.jaewa.commandchain;
 import com.jaewa.commandchain.service.ExecutorService;
 import java.awt.EventQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import javax.swing.SwingUtilities;
 
 
@@ -49,7 +50,7 @@ public class Commands {
      *
      * @param cmd the <code>Command</code> to be adapted and executed as part of an asynchronous chain
      * @return an <code>AsyncCommand</code> that executes the given <code>Command</code> within an
-     *         asynchronous command chain
+     * asynchronous command chain
      */
     public static AsyncCommand async(Command cmd) {
         return (ctx, chain) -> {
@@ -74,7 +75,7 @@ public class Commands {
      * @param future the {@code CompletableFuture} whose completion determines the execution flow
      *               in the asynchronous command chain
      * @return an {@code AsyncCommand} that integrates the given {@code CompletableFuture} into
-     *         the asynchronous command chain
+     * the asynchronous command chain
      */
     public static AsyncCommand async(CompletableFuture<?> future) {
         return (ctx, chain) -> future.whenComplete((v, e) -> {
@@ -99,7 +100,7 @@ public class Commands {
      *
      * @param runnable the <code>Runnable</code> to be adapted and executed as part of an asynchronous chain
      * @return an <code>AsyncCommand</code> that executes the given <code>Runnable</code> within an
-     *         asynchronous command chain
+     * asynchronous command chain
      */
     public static AsyncCommand async(Runnable runnable) {
         return async((Command) ctx -> runnable.run());
@@ -114,7 +115,7 @@ public class Commands {
      *            proper thread safety when interacting with UI components or other event-thread-specific
      *            operations
      * @return a new <code>AsyncCommand</code> that wraps the given <code>AsyncCommand</code> and ensures
-     *         its execution on the Event Dispatch Thread
+     * its execution on the Event Dispatch Thread
      */
     public static AsyncCommand onEventQueue(AsyncCommand cmd) {
         return (ctx, chain) -> {
@@ -134,7 +135,7 @@ public class Commands {
      * @param h the <code>AsyncFailureHandler</code> to be executed on the Event Dispatch Thread, ensuring
      *          thread safety when interacting with UI components or other event-thread-specific operations
      * @return a new <code>AsyncFailureHandler</code> that wraps the given <code>AsyncFailureHandler</code> and ensures its
-     *         execution on the Event Dispatch Thread
+     * execution on the Event Dispatch Thread
      */
     public static AsyncFailureHandler onEventQueue(AsyncFailureHandler h) {
         return (e, chain) -> {
@@ -162,7 +163,7 @@ public class Commands {
      *
      * @param cmd the <code>Command</code> to be adapted and executed on the Event Dispatch Thread
      * @return an <code>AsyncCommand</code> that wraps the given <code>Command</code> and
-     *         ensures its execution on the Event Dispatch Thread
+     * ensures its execution on the Event Dispatch Thread
      */
     public static AsyncCommand onEventQueue(Command cmd) {
         return onEventQueue(async(cmd));
@@ -180,7 +181,7 @@ public class Commands {
      *
      * @param cmd the <code>FailureHandler</code> to be adapted and executed as part of an asynchronous chain
      * @return an <code>AsyncFailureHandler</code> that executes the given <code>FailureHandler</code> within an
-     *         asynchronous command chain
+     * asynchronous command chain
      */
     public static AsyncFailureHandler async(FailureHandler cmd) {
         return (e, chain) -> {
@@ -203,12 +204,26 @@ public class Commands {
      *
      * @param runnable the {@code Runnable} to be executed alongside the command chain
      * @return an {@code AsyncCommand} that executes the given {@code Runnable} asynchronously
-     *         without altering the chain's progression
+     * without altering the chain's progression
      */
     public static AsyncCommand wireTap(Runnable runnable) {
         return (ctx, chain) -> {
             ExecutorService.execute(runnable);
             chain.next();
+        };
+    }
+
+    public static AsyncCommand conditional(Predicate<Context> condition, AsyncCommand trueCommand) {
+        return conditional(condition, trueCommand, (ctx, chain) -> chain.next());
+    }
+
+    public static AsyncCommand conditional(Predicate<Context> condition, AsyncCommand trueCommand, AsyncCommand falseCommand) {
+        return (ctx, chain) -> {
+            if (condition.test(ctx)) {
+                trueCommand.execute(ctx, chain);
+            } else {
+                falseCommand.execute(ctx, chain);
+            }
         };
     }
 
