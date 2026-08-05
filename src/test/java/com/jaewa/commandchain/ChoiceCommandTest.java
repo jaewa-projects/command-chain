@@ -17,7 +17,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-public class IfCommandTest {
+public class ChoiceCommandTest {
     @Mock
     private AsyncCommand command1;
     @Mock

@@ -5,11 +5,11 @@ import java.util.List;
 import java.util.function.Predicate;
 import org.apache.commons.lang3.tuple.Pair;
 
-public class IfCommand implements CommandBlock {
+public class ChoiceCommand implements CommandBlock {
     private CommandExecutor currentExecutor;
     private final List<Pair<Predicate<Context>, CommandExecutor>> branches;
 
-    public IfCommand() {
+    public ChoiceCommand() {
         branches = new ArrayList<>();
     }
 

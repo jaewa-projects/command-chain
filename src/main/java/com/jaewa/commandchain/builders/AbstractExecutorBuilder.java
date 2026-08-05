@@ -109,8 +109,8 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
         return result;
     }
 
-    public IfExecutorBuilder<B> choice(String name) {
-        IfExecutorBuilder<B> result = new IfExecutorBuilder<>(self());
+    public ChoiceExecutorBuilder<B> choice(String name) {
+        ChoiceExecutorBuilder<B> result = new ChoiceExecutorBuilder<>(self());
         getCommandExecutor().add(name, result.build());
         return result;
     }
