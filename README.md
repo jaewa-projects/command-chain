@@ -118,7 +118,33 @@ executor.add("Quick Task", async(() -> {
 }));
 ```
 
-### 4. Continuous Execution Mode
+### 4. Conditional execution with `ChoiceCommand`
+You can use `ChoiceCommand` to implement conditional branching in your chain. Each branch is defined by a `Predicate<Context>` and contains its own sequence of commands.
+
+```java
+import com.jaewa.commandchain.ChoiceCommand;
+import com.jaewa.commandchain.CommandExecutor;
+
+CommandExecutor executor = new CommandExecutor();
+
+ChoiceCommand choice = new ChoiceCommand();
+
+// First branch: if 'type' is 'A'
+choice.when(ctx -> "A".equals(ctx.get("type", String.class)));
+choice.add("Branch A Step", ctx -> System.out.println("Executing branch A"));
+
+// Second branch: if 'type' is 'B'
+choice.when(ctx -> "B".equals(ctx.get("type", String.class)));
+choice.add("Branch B Step", ctx -> System.out.println("Executing branch B"));
+
+// Add the choice command to the main executor
+executor.add("My Choice", choice);
+executor.add("Final Step", ctx -> System.out.println("Done"));
+
+executor.start(new DefaultContext());
+```
+
+### 5. Continuous Execution Mode
 In continuous mode, the executor stays alive even after completing all current commands. It waits for new commands to be added via `add()`. This is ideal for background workers or event processors.
 
 ```java
@@ -178,6 +204,27 @@ CommandExecutor.builder()
     .end()
     .exec("camera close", ctx -> camera.close())
     .onFailure(ex -> System.err.println("Error: " + ex.getMessage()))
+    .build()
+    .start(new DefaultContext());
+```
+
+### 3. Conditional Branching
+The builder provides a `choice()` method to handle conditional logic cleanly. You can define multiple `when()` branches and an optional `otherwise()` block.
+
+```java
+CommandExecutor.pipelineBuilder()
+    .choice("check status")
+        .when(ctx -> ctx.getOrDefault("status", Integer.class, 0) > 0)
+            .exec("success", ctx -> System.out.println("Status is positive"))
+        .end()
+        .when(ctx -> ctx.getOrDefault("status", Integer.class, 0) < 0)
+            .exec("failure", ctx -> System.out.println("Status is negative"))
+        .end()
+        .otherwise()
+            .exec("default", ctx -> System.out.println("Status is zero"))
+        .end()
+    .end()
+    .exec("cleanup", ctx -> System.out.println("Finalizing..."))
     .build()
     .start(new DefaultContext());
 ```
