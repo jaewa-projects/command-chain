@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.function.Predicate;
 import org.apache.commons.lang3.tuple.Pair;
 
-public class IfCommand implements AsyncCommand {
+public class IfCommand implements CommandBlock {
     private CommandExecutor currentExecutor;
     private final List<Pair<Predicate<Context>, CommandExecutor>> branches;
 
@@ -41,7 +41,8 @@ public class IfCommand implements AsyncCommand {
         chain.next();
     }
 
-    public CommandExecutor getCurrentCommandExecutor() {
+    @Override
+    public CommandExecutor getBlockCommandExecutor() {
         return currentExecutor;
     }
 }

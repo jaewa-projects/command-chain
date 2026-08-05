@@ -1,6 +1,6 @@
 package com.jaewa.commandchain;
 
-public abstract class AbstractLoop implements AsyncCommand, Loop {
+public abstract class AbstractLoop implements Loop, CommandBlock {
     private final String varName;
     protected CommandExecutor loopExecutor;
 
@@ -46,7 +46,8 @@ public abstract class AbstractLoop implements AsyncCommand, Loop {
         }
     }
 
-    public CommandExecutor getLoopExecutor() {
+    @Override
+    public CommandExecutor getBlockCommandExecutor() {
         return loopExecutor;
     }
 }
