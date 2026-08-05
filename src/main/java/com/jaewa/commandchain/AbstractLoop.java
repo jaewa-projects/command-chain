@@ -11,7 +11,9 @@ public abstract class AbstractLoop implements AsyncCommand, Loop {
 
     @Override
     public final void init(Context ctx) {
-        ctx.set(varName, this);
+        if (varName != null) {
+            ctx.set(varName, this);
+        }
         init();
     }
 

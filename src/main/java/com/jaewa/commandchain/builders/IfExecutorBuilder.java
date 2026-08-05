@@ -4,30 +4,35 @@ import com.jaewa.commandchain.AsyncCommand;
 import com.jaewa.commandchain.CommandExecutor;
 import com.jaewa.commandchain.Commands;
 import com.jaewa.commandchain.Context;
+import com.jaewa.commandchain.IfCommand;
 import java.util.function.Predicate;
 
 public class IfExecutorBuilder<P extends AbstractExecutorBuilder<?>> extends AbstractOngoingBuilder<LoopExecutorBuilder<P>, P> {
 
-    private final CommandExecutor mainExecutor;
-
-    private CommandExecutor currentExecutor;
+    private final IfCommand ifCommand;
 
     public IfExecutorBuilder(Predicate<Context> condition, P parentBuilder) {
         super(parentBuilder);
-        mainExecutor = new CommandExecutor();
+        this.ifCommand = new IfCommand();
+        ifCommand.when(condition);
     }
 
-    private void addBranch(String name, Predicate<Context> condition) {
-        currentExecutor = new CommandExecutor();
-        mainExecutor.add(name, Commands.conditional(condition, currentExecutor));
+    public IfExecutorBuilder<P> when(Predicate<Context> condition) {
+        ifCommand.when(condition);
+        return this;
+    }
+
+    public IfExecutorBuilder<P> otherwise() {
+        ifCommand.when(c -> true);
+        return this;
     }
 
     @Override
     protected CommandExecutor getCommandExecutor() {
-        return currentExecutor;
+        return ifCommand.getCurrentCommandExecutor();
     }
 
     public AsyncCommand build() {
-        return mainExecutor;
+        return ifCommand;
     }
 }

@@ -111,7 +111,7 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
         return result;
     }
 
-    public IfExecutorBuilder<B> ifCondition(String name, Predicate<Context> condition) {
+    public IfExecutorBuilder<B> when(String name, Predicate<Context> condition) {
         IfExecutorBuilder<B> result = new IfExecutorBuilder<>(condition, self());
         getCommandExecutor().add(name, result.build());
         return result;
