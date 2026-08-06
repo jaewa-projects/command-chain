@@ -20,8 +20,8 @@ public abstract class AbstractLoop implements Loop, CommandBlock {
     protected abstract void init();
 
     @Override
-    public void add(String name, AsyncCommand cmd) {
-        loopExecutor.add(name, cmd);
+    public void add(AsyncCommand cmd) {
+        loopExecutor.add(cmd);
     }
 
     @Override

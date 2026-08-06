@@ -2,7 +2,6 @@ package com.jaewa.commandchain;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.commons.lang3.tuple.Pair;
 
 
 /**
@@ -23,7 +22,7 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 public class CommandPipeline implements CommandSource {
 
-    private final List<Pair<String, AsyncCommand>> commands;
+    private final List<AsyncCommand> commands;
 
     private int executionIndex = -1;
 
@@ -32,8 +31,8 @@ public class CommandPipeline implements CommandSource {
     }
 
     @Override
-    public void add(String commandName, AsyncCommand command) {
-        this.commands.add(Pair.of(commandName, command));
+    public void add(AsyncCommand command) {
+        this.commands.add(command);
     }
 
     @Override
@@ -42,7 +41,7 @@ public class CommandPipeline implements CommandSource {
     }
 
     @Override
-    public Pair<String, AsyncCommand> next() {
+    public AsyncCommand next() {
         if (executionIndex < commands.size() - 1) {
             executionIndex++;
             return commands.get(executionIndex);

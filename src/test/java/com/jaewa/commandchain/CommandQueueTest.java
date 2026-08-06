@@ -1,6 +1,5 @@
 package com.jaewa.commandchain;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,14 +29,12 @@ class CommandQueueTest {
 
     @Test
     void testAddAndNext() {
-        String name = "testCommand";
-        commandQueue.add(name, command1);
+        commandQueue.add(command1);
 
-        Pair<String, AsyncCommand> result = commandQueue.next();
+        AsyncCommand result = commandQueue.next();
 
         assertNotNull(result);
-        assertEquals(name, result.getLeft());
-        assertEquals(command1, result.getRight());
+        assertEquals(command1, result);
 
         assertNull(commandQueue.next());
     }
@@ -49,20 +46,18 @@ class CommandQueueTest {
 
     @Test
     void testFifoOrder() {
-        commandQueue.add("cmd1", command1);
-        commandQueue.add("cmd2", command2);
+        commandQueue.add(command1);
+        commandQueue.add(command2);
 
-        Pair<String, AsyncCommand> first = commandQueue.next();
-        Pair<String, AsyncCommand> second = commandQueue.next();
-        Pair<String, AsyncCommand> third = commandQueue.next();
+        AsyncCommand first = commandQueue.next();
+        AsyncCommand second = commandQueue.next();
+        AsyncCommand third = commandQueue.next();
 
         assertNotNull(first);
-        assertEquals("cmd1", first.getLeft());
-        assertEquals(command1, first.getRight());
+        assertEquals(command1, first);
 
         assertNotNull(second);
-        assertEquals("cmd2", second.getLeft());
-        assertEquals(command2, second.getRight());
+        assertEquals(command2, second);
 
         assertNull(third);
     }

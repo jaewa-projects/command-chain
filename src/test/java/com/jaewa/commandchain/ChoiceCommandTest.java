@@ -39,15 +39,15 @@ public class ChoiceCommandTest {
 
         //@formatter:off
         CommandExecutor executor = builder
-                .choice("choice")
+                .choice()
                     .when(ctx -> true)
-                        .exec("command1", command1)
+                        .exec(command1)
                     .end()
                     .when(ctx -> true)
-                        .exec("command2", command2)
+                        .exec(command2)
                     .end()
                     .otherwise()
-                        .exec("command3", command3)
+                        .exec(command3)
                     .end()
                 .end()
                 .build();
@@ -70,15 +70,15 @@ public class ChoiceCommandTest {
 
         //@formatter:off
         CommandExecutor executor = builder
-                .choice("choice")
+                .choice()
                     .when(ctx -> false)
-                        .exec("command1", command1)
+                        .exec(command1)
                     .end()
                     .when(ctx -> true)
-                        .exec("command2", command2)
+                        .exec(command2)
                     .end()
                     .otherwise()
-                        .exec("command3", command3)
+                        .exec(command3)
                     .end()
                 .end()
                 .build();
@@ -101,15 +101,15 @@ public class ChoiceCommandTest {
     void testOtherwise() throws ExecutionException, InterruptedException, TimeoutException {
 
         CommandExecutor executor = builder
-                .choice("choice")
+                .choice()
                     .when(ctx -> false)
-                        .exec("command1", command1)
+                        .exec(command1)
                     .end()
                     .when(ctx -> false)
-                        .exec("command2", command2)
+                        .exec(command2)
                     .end()
                     .otherwise()
-                        .exec("command3", command3)
+                        .exec(command3)
                     .end()
                 .end()
                 .build();
@@ -130,12 +130,12 @@ public class ChoiceCommandTest {
     void testNoOptionsNoOtherwise() throws ExecutionException, InterruptedException, TimeoutException {
 
         CommandExecutor executor = builder
-                .choice("choice")
+                .choice()
                     .when(ctx -> false)
-                        .exec("command1", command1)
+                        .exec(command1)
                     .end()
                     .when(ctx -> false)
-                        .exec("command2", command2)
+                        .exec(command2)
                     .end()
                 .end()
                 .build();

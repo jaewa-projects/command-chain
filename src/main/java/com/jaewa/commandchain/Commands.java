@@ -5,6 +5,7 @@ import java.awt.EventQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import javax.swing.SwingUtilities;
+import org.apache.commons.lang3.StringUtils;
 
 
 /**
@@ -223,6 +224,51 @@ public class Commands {
                 trueCommand.execute(ctx, chain);
             } else {
                 falseCommand.execute(ctx, chain);
+            }
+        };
+    }
+
+    /**
+     * Creates a new {@code AsyncCommand} with the specified name and delegate command.
+     *
+     * @param name the name to associate with the command. This will be used as the command's {@code toString()} representation.
+     * @param cmd  the {@code AsyncCommand} to be executed when the resulting command is invoked.
+     * @return a new {@code AsyncCommand} that delegates execution to the provided {@code cmd}
+     *         and overrides {@code toString()} to return the specified name.
+     */
+    public static AsyncCommand named(String name, AsyncCommand cmd) {
+        return new AsyncCommand() {
+            @Override
+            public void execute(Context ctx, CommandChain chain) {
+                cmd.execute(ctx, chain);
+            }
+
+            @Override
+            public String toString() {
+                return StringUtils.isNotBlank(name) ? name : cmd.toString();
+            }
+        };
+    }
+
+    /**
+     * Creates and returns a new Command instance with a customized name.
+     * The returned Command execution delegates to the provided Command's execute method,
+     * while overriding its toString method to return the specified name.
+     *
+     * @param name the name to associate with the new Command
+     * @param cmd  the original Command whose execute behavior will be used
+     * @return a new Command instance with the provided name and delegated behavior
+     */
+    public static Command named(String name, Command cmd){
+        return new Command() {
+            @Override
+            public void execute(Context ctx) throws Exception {
+                cmd.execute(ctx);
+            }
+
+            @Override
+            public String toString() {
+                return StringUtils.isNotBlank(name) ? name : cmd.toString();
             }
         };
     }

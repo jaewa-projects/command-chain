@@ -61,8 +61,8 @@ class CommandExecutorTest {
         }).when(command2).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
-                .exec("cmd1", command1)
-                .exec("cmd2", command2)
+                .exec(command1)
+                .exec(command2)
                 .onFailure(failureHandler)
                 .build();
 
@@ -89,8 +89,8 @@ class CommandExecutorTest {
         }).when(command2).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.queueBuilder()
-                .exec("cmd1", command1)
-                .exec("cmd2", command2)
+                .exec(command1)
+                .exec(command2)
                 .onFailure(failureHandler)
                 .build();
 
@@ -118,8 +118,8 @@ class CommandExecutorTest {
         }).when(failureHandler).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
-                .exec("cmd1", command1)
-                .exec("cmd2", command2)
+                .exec(command1)
+                .exec(command2)
                 .onFailure(failureHandler)
                 .build();
 
@@ -146,8 +146,8 @@ class CommandExecutorTest {
 
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
-                .exec("cmd1", command1)
-                .exec("cmd2", command2)
+                .exec(command1)
+                .exec(command2)
                 .onFailure(failureHandler)
                 .build();
 
@@ -175,8 +175,8 @@ class CommandExecutorTest {
         }).when(failureHandler).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
-                .exec("cmd1", command1)
-                .exec("cmd2", command2)
+                .exec(command1)
+                .exec(command2)
                 .onFailure(failureHandler)
                 .build();
 
@@ -194,7 +194,7 @@ class CommandExecutorTest {
         doAnswer(invocation -> null).when(command1).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
-                .exec("cmd1", command1)
+                .exec(command1)
                 .build();
 
         assertThrows(TimeoutException.class, () -> commandExecutor.start(context).get(1, TimeUnit.SECONDS));
@@ -212,7 +212,7 @@ class CommandExecutorTest {
         doAnswer(invocation -> null).when(failureHandler).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
-                .exec("cmd1", command1)
+                .exec(command1)
                 .onFailure(failureHandler)
                 .build();
 
@@ -223,7 +223,7 @@ class CommandExecutorTest {
     void testExecuteWithDynamicAddition() throws Exception {
         doAnswer(invocation -> {
             CommandExecutor executor = invocation.getArgument(1);
-            executor.add("cmd3", command3);
+            executor.add(command3);
             executor.next();
             return null;
         }).when(command1).execute(any(), any());
@@ -239,8 +239,8 @@ class CommandExecutorTest {
         }).when(command3).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
-                .exec("cmd1", command1)
-                .exec("cmd2", command2)
+                .exec(command1)
+                .exec(command2)
                 .build();
 
         commandExecutor.start(context).get(5, TimeUnit.SECONDS);
@@ -272,14 +272,14 @@ class CommandExecutorTest {
         }).when(command3).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
-                .exec("cmd1", command1)
-                .exec("cmd2", command2)
+                .exec(command1)
+                .exec(command2)
                 .build();
 
         Future<Void> future = commandExecutor.startContinuous(context);
         future.get(5, TimeUnit.SECONDS);
 
-        commandExecutor.add("cmd3", command3);
+        commandExecutor.add(command3);
         future.get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, command3);
@@ -313,11 +313,11 @@ class CommandExecutorTest {
         Future<Void> future = commandExecutor.startContinuous(context);
         future.get(5, TimeUnit.SECONDS);
 
-        commandExecutor.add("cmd1", command1);
-        commandExecutor.add("cmd2", command2);
+        commandExecutor.add(command1);
+        commandExecutor.add(command2);
         future.get(5, TimeUnit.SECONDS);
 
-        commandExecutor.add("cmd3", command3);
+        commandExecutor.add(command3);
         future.get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, command3);
@@ -343,8 +343,8 @@ class CommandExecutorTest {
         }).when(command2).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
-                        .exec("cmd1", command1)
-                        .exec("cmd2", command2)
+                        .exec(command1)
+                        .exec(command2)
                         .build();
 
         // First execution
@@ -378,8 +378,8 @@ class CommandExecutorTest {
         }).when(command2).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.queueBuilder()
-                        .exec("cmd1", command1)
-                        .exec("cmd2", command2)
+                        .exec(command1)
+                        .exec(command2)
                         .build();
 
         // First execution
@@ -415,7 +415,7 @@ class CommandExecutorTest {
     @Test
     void testFailTwice() {
         CommandExecutor executor = CommandExecutor.pipelineBuilder()
-                .exec("cmd1", (ctx, chain) -> {
+                .exec((ctx, chain) -> {
                     // non chiamando next() o fail() teniamo il comando "appeso"
                 })
                 .build();
@@ -464,7 +464,7 @@ class CommandExecutorTest {
         }).when(command1).execute(any(), any());
 
         CommandExecutor executor = CommandExecutor.pipelineBuilder()
-                .exec("cmd1", command1)
+                .exec(command1)
                 .build();
         
         executor.execute(context, mockChain);

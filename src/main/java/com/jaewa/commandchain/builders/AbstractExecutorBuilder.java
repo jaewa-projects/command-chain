@@ -27,12 +27,11 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      * Adds a command to the command executor with the specified name and returns the current builder instance.
      * The provided command is executed asynchronously.
      *
-     * @param name the name identifying the command
      * @param cmd  the command to be executed asynchronously
      * @return the current builder instance for chaining method calls
      */
-    public B exec(String name, Command cmd) {
-        getCommandExecutor().add(name, Commands.async(cmd));
+    public B exec(Command cmd) {
+        getCommandExecutor().add(Commands.async(cmd));
         return self();
     }
 
@@ -40,12 +39,11 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      * Adds an asynchronous command to the command executor with the specified name and returns the current builder instance.
      * The provided command is executed asynchronously as part of the command execution flow.
      *
-     * @param name the name identifying the command
      * @param cmd  the asynchronous command to be executed
      * @return the current builder instance for chaining method calls
      */
-    public B exec(String name, AsyncCommand cmd) {
-        getCommandExecutor().add(name, cmd);
+    public B exec(AsyncCommand cmd) {
+        getCommandExecutor().add(cmd);
         return self();
     }
 
@@ -54,12 +52,11 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      * The provided {@code Runnable} is executed each time the associated command is processed,
      * allowing for side-effect operations such as logging or monitoring.
      *
-     * @param name    the name identifying the wiretap
      * @param runnable the {@code Runnable} to be executed as part of the wiretap
      * @return the current builder instance for chaining method calls
      */
-    public B wiretap(String name, Runnable runnable) {
-        getCommandExecutor().add(name, Commands.wireTap(runnable));
+    public B wiretap(Runnable runnable) {
+        getCommandExecutor().add(Commands.wireTap(runnable));
         return self();
     }
 
@@ -98,20 +95,19 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      * Adds a looping executor to the command executor with the specified name.
      * The looping executor repeatedly executes commands as defined by the {@link Loop} interface.
      *
-     * @param name the name identifying the loop executor
      * @param loop the {@code Loop} implementation defining the initialization, iteration,
      *             and termination logic of the loop
      * @return a builder to further configure the loop executor
      */
-    public CommandBlockBuilder<B> loop(String name, AbstractLoop loop) {
+    public CommandBlockBuilder<B> loop(AbstractLoop loop) {
         CommandBlockBuilder<B> result = new CommandBlockBuilder<>(loop, self());
-        getCommandExecutor().add(name, result.build());
+        getCommandExecutor().add(result.build());
         return result;
     }
 
-    public ChoiceExecutorBuilder<B> choice(String name) {
+    public ChoiceExecutorBuilder<B> choice() {
         ChoiceExecutorBuilder<B> result = new ChoiceExecutorBuilder<>(self());
-        getCommandExecutor().add(name, result.build());
+        getCommandExecutor().add(result.build());
         return result;
     }
 

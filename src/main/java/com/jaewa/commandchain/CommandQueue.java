@@ -2,7 +2,6 @@ package com.jaewa.commandchain;
 
 import java.util.LinkedList;
 import java.util.Queue;
-import org.apache.commons.lang3.tuple.Pair;
 
 
 /**
@@ -18,11 +17,11 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 public class CommandQueue implements CommandSource{
 
-    private final Queue<Pair<String, AsyncCommand>> queue = new LinkedList<>();
+    private final Queue<AsyncCommand> queue = new LinkedList<>();
 
     @Override
-    public void add(String commandName, AsyncCommand command) {
-        queue.add(Pair.of(commandName, command));
+    public void add(AsyncCommand command) {
+        queue.add(command);
     }
 
     @Override
@@ -38,7 +37,7 @@ public class CommandQueue implements CommandSource{
      * or null if the queue is empty
      */
     @Override
-    public Pair<String, AsyncCommand> next() {
+    public AsyncCommand next() {
         return queue.poll();
     }
 }

@@ -7,7 +7,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,11 +111,10 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * Adds an asynchronous command to the command queue with the specified name.
      * The command is wrapped to ensure it handles interruptions and exceptions gracefully.
      *
-     * @param name the name identifying the command
      * @param cmd  the asynchronous command to be added
      */
-    public synchronized void add(String name, AsyncCommand cmd) {
-        commandSource.add(name, interruptible(safe(cmd)));
+    public synchronized void add(AsyncCommand cmd) {
+        commandSource.add(interruptible(safe(cmd)));
         if (continuous && future.isDone()) {
             future = new CompletableFuture<>();
             failure = null;
@@ -151,7 +149,7 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * execution workflow by invoking the implementation-specific logic.
      *
      * <p>
-     * In continuous mode, when a new command is added via {@link #add(String, AsyncCommand)}
+     * In continuous mode, when a new command is added via {@link #add(AsyncCommand)}
      * after the previous execution has completed (i.e., the future is done), the internal
      * future is reset. This means it is no longer in a done state and becomes a new
      * {@link Future} that can be used to track the completion of the newly
@@ -191,11 +189,11 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
             future.completeExceptionally(failure);
             return;
         }
-        Pair<String, AsyncCommand> cmdPair = commandSource.next();
+        AsyncCommand cmd = commandSource.next();
 
-        if (cmdPair != null) {
-            log.info("Executing command: {}", cmdPair.getLeft());
-            executeCommandAsync(cmdPair.getLeft(), cmdPair.getRight());
+        if (cmd != null) {
+            log.info("Executing command: {}", cmd);
+            executeCommandAsync(cmd);
         } else {
             future.complete(null);
         }
@@ -216,10 +214,10 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
         }
     }
 
-    private void executeCommandAsync(String name, AsyncCommand cmd) {
+    private void executeCommandAsync(AsyncCommand cmd) {
         ExecutorService.execute(() -> {
             cmd.execute(currentContext, this);
-            log.debug("Command {} executed", name);
+            log.debug("Command {} executed", cmd);
         });
     }
 

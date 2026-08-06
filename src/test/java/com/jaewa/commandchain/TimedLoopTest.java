@@ -51,8 +51,8 @@ class TimedLoopTest {
 
         TimedLoop timedLoop = new TimedLoop("myTimer", duration);
 
-        CommandExecutor executor = builder.loop("timedLoop", timedLoop)
-                .exec("increment", (ctx, chain) -> {
+        CommandExecutor executor = builder.loop(timedLoop)
+                .exec((ctx, chain) -> {
                     executionCount.incrementAndGet();
                     chain.next();
                 })

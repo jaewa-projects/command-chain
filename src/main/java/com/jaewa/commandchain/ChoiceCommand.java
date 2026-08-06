@@ -18,11 +18,11 @@ public class ChoiceCommand implements CommandBlock {
         branches.add(Pair.of(condition, currentExecutor));
     }
 
-    public void add(String name, AsyncCommand cmd) {
+    public void add(AsyncCommand cmd) {
         if (currentExecutor == null) {
             throw new IllegalStateException("IfCommand is not initialized");
         }
-        currentExecutor.add(name, cmd);
+        currentExecutor.add(cmd);
     }
 
     @Override

@@ -40,10 +40,8 @@ public interface Loop {
      * a command that executes asynchronously and can be invoked as part of the iteration
      * process within the loop.
      *
-     * @param name the unique name assigned to the asynchronous command; used to identify
-     *             the command within the loop
-     * @param cmd  the asynchronous command to be added, which defines its execution logic
-     *             and interactions with the loop's context and flow
+     * @param cmd the asynchronous command to be added, which defines its execution logic
+     *            and interactions with the loop's context and flow
      */
-    void add(String name, AsyncCommand cmd);
+    void add(AsyncCommand cmd);
 }

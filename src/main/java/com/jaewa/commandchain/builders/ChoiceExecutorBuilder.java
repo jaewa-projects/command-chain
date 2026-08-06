@@ -1,9 +1,9 @@
 package com.jaewa.commandchain.builders;
 
 import com.jaewa.commandchain.AsyncCommand;
+import com.jaewa.commandchain.ChoiceCommand;
 import com.jaewa.commandchain.CommandExecutor;
 import com.jaewa.commandchain.Context;
-import com.jaewa.commandchain.ChoiceCommand;
 import java.util.function.Predicate;
 
 public class ChoiceExecutorBuilder<P extends AbstractExecutorBuilder<?>> extends AbstractOngoingBuilder<CommandBlockBuilder<P>, P> {

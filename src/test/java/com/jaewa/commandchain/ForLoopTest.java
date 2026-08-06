@@ -1,6 +1,7 @@
 package com.jaewa.commandchain;
 
 import com.jaewa.commandchain.builders.MainExecutorBuilder;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -8,12 +9,14 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.concurrent.TimeUnit;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class ForLoopTest {
@@ -45,8 +48,8 @@ class ForLoopTest {
         }).when(innerCommand).execute(any(), any());
 
         CommandExecutor executor = builder
-                .loop("myLoop", forLoop)
-                    .exec("innerCmd", innerCommand)
+                .loop(forLoop)
+                    .exec(innerCommand)
                 .end()
                 .build();
 
@@ -85,9 +88,9 @@ class ForLoopTest {
         }).when(innerCommand).execute(any(), any());
 
         CommandExecutor executor = builder
-                .loop("outerLoop", outerLoop)
-                    .loop("innerLoop", innterLoop)
-                        .exec("innerCmd", innerCommand)
+                .loop(outerLoop)
+                    .loop(innterLoop)
+                        .exec(innerCommand)
                     .end()
                 .end()
                 .build();
@@ -112,12 +115,12 @@ class ForLoopTest {
                 val -> val + 1
         );
 
-        CommandExecutor executor = builder.exec("beforeLoop", (ctx, chain) -> {
+        CommandExecutor executor = builder.exec((ctx, chain) -> {
                     capturedContexts[0] = ctx;
                     chain.next();
                 })
-                .loop("loop", forLoop)
-                .exec("insideLoop", (ctx, chain) -> {
+                .loop(forLoop)
+                .exec((ctx, chain) -> {
                     capturedContexts[1] = ctx;
                     chain.next();
                 })
