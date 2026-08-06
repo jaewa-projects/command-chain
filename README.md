@@ -56,7 +56,7 @@ CommandExecutor pipelineExecutor = new CommandExecutor(new CommandPipeline());
 CommandExecutor queueExecutor = new CommandExecutor(new CommandQueue());
 
 // Add an asynchronous command
-pipelineExecutor.add("Async Step", (ctx, chain) -> {
+pipelineExecutor.add((ctx, chain) -> {
     System.out.println("Starting async work...");
     CompletableFuture.runAsync(() -> {
         // Simulate external work
@@ -79,15 +79,15 @@ CommandExecutor executor = new CommandExecutor();
 ForLoop<Integer> loop = new ForLoop<>("i", () -> 0, i -> i < 3, i -> i + 1);
 
 // Add commands to be executed INSIDE the loop
-loop.add("Loop Content", ctx -> {
+loop.add(ctx -> {
     int currentI = loop.getValue();
     System.out.println("Iteration: " + currentI);
 });
 
 // Add the loop itself to the main executor
-executor.add("My Loop", loop);
+executor.add(loop);
 
-executor.add("Post Loop", ctx -> System.out.println("Loop finished!"));
+executor.add(ctx -> System.out.println("Post Loop: Loop finished!"));
 
 executor.start(new DefaultContext());
 ```
@@ -103,17 +103,17 @@ The `Commands` utility class provides static methods to wrap your logic and add 
 import static com.jaewa.commandchain.Commands.*;
 
 // Ensure UI updates happen on the EDT
-executor.add("Update Label", onEventQueue(ctx -> {
+executor.add(onEventQueue(ctx -> {
     statusLabel.setText("Processing...");
 }));
 
 // Run a side-effect (like logging) without waiting for it
-executor.add("Audit", wireTap(() -> {
+executor.add(wireTap(() -> {
     logger.info("Step reached at " + System.currentTimeMillis());
 }));
 
 // Wrap a simple Runnable as an async step
-executor.add("Quick Task", async(() -> {
+executor.add(async(() -> {
     System.out.println("Doing something simple");
 }));
 ```
@@ -131,15 +131,15 @@ ChoiceCommand choice = new ChoiceCommand();
 
 // First branch: if 'type' is 'A'
 choice.when(ctx -> "A".equals(ctx.get("type", String.class)));
-choice.add("Branch A Step", ctx -> System.out.println("Executing branch A"));
+choice.add(ctx -> System.out.println("Executing branch A"));
 
 // Second branch: if 'type' is 'B'
 choice.when(ctx -> "B".equals(ctx.get("type", String.class)));
-choice.add("Branch B Step", ctx -> System.out.println("Executing branch B"));
+choice.add(ctx -> System.out.println("Executing branch B"));
 
 // Add the choice command to the main executor
-executor.add("My Choice", choice);
-executor.add("Final Step", ctx -> System.out.println("Done"));
+executor.add(choice);
+executor.add(ctx -> System.out.println("Final Step: Done"));
 
 executor.start(new DefaultContext());
 ```
@@ -154,12 +154,12 @@ executor.startContinuous(new DefaultContext());
 // The executor is now waiting for commands...
 
 // Later, in response to a button click or network message:
-executor.add("Incoming Request", ctx -> {
+executor.add(ctx -> {
     System.out.println("Processing dynamic request!");
 });
 
 // You can still add complex async commands
-executor.add("Async Request", (ctx, chain) -> {
+executor.add((ctx, chain) -> {
     service.doWork().thenRun(chain::next);
 });
 ```
@@ -174,13 +174,13 @@ The library provides a fluent builder to compose complex algorithm chains, inclu
 ```java
 // Pipeline builder (Default source): Commands are preserved
 CommandExecutor.pipelineBuilder()
-    .exec("Initialization", ctx -> System.out.println("Starting..."))
+    .exec(ctx -> System.out.println("Starting..."))
     .build()
     .start(new DefaultContext());
 
 // Queue builder: Commands are consumed
 CommandExecutor.queueBuilder()
-    .exec("One-time task", ctx -> System.out.println("Executing..."))
+    .exec(ctx -> System.out.println("Executing..."))
     .build()
     .start(new DefaultContext());
 ```
@@ -193,16 +193,16 @@ import static com.jaewa.commandchain.Commands.*;
 import com.jaewa.commandchain.TimedLoop;
 
 CommandExecutor.builder()
-    .exec("open camera", ctx -> camera.open())
-    .loop("timelapse loop", new TimedLoop("tl", 5000L)) // Loop for 5 seconds
-        .exec("camera acquire", ctx -> {
+    .exec(ctx -> camera.open())
+    .loop(new TimedLoop("tl", 5000L)) // Loop for 5 seconds
+        .exec(ctx -> {
              TimedLoop loop = ctx.get("tl", TimedLoop.class);
              System.out.println("Acquiring image for cycle: " + loop.getCycle());
              camera.acquireImages();
         })
-        .exec("notify ui", onEventQueue(ctx -> updateProgressUI()))
+        .exec(onEventQueue(ctx -> updateProgressUI()))
     .end()
-    .exec("camera close", ctx -> camera.close())
+    .exec(ctx -> camera.close())
     .onFailure(ex -> System.err.println("Error: " + ex.getMessage()))
     .build()
     .start(new DefaultContext());
@@ -213,18 +213,18 @@ The builder provides a `choice()` method to handle conditional logic cleanly. Yo
 
 ```java
 CommandExecutor.pipelineBuilder()
-    .choice("check status")
+    .choice()
         .when(ctx -> ctx.getOrDefault("status", Integer.class, 0) > 0)
-            .exec("success", ctx -> System.out.println("Status is positive"))
+            .exec(ctx -> System.out.println("Status is positive"))
         .end()
         .when(ctx -> ctx.getOrDefault("status", Integer.class, 0) < 0)
-            .exec("failure", ctx -> System.out.println("Status is negative"))
+            .exec(ctx -> System.out.println("Status is negative"))
         .end()
         .otherwise()
-            .exec("default", ctx -> System.out.println("Status is zero"))
+            .exec(ctx -> System.out.println("Status is zero"))
         .end()
     .end()
-    .exec("cleanup", ctx -> System.out.println("Finalizing..."))
+    .exec(ctx -> System.out.println("Finalizing..."))
     .build()
     .start(new DefaultContext());
 ```
