@@ -229,6 +229,40 @@ CommandExecutor.pipelineBuilder()
     .start(new DefaultContext());
 ```
 
+### Error Handling with `FailureHandler`
+
+Centralized error management is handled via the `onFailure()` method in the builder or `setFailureHandler()` on the executor. You can use a simple `FailureHandler` for synchronous logging/cleanup or an `AsyncFailureHandler` for more complex scenarios where you need control over the chain progression after an error.
+
+#### 1. Intercepting and Rethrowing
+If you want to perform an action (like logging) and then let the error propagate to the caller (completing the `CompletableFuture` exceptionally), use `chain.fail(e)`.
+
+```java
+CommandExecutor.pipelineBuilder()
+    .exec(ctx -> { throw new RuntimeException("Something went wrong"); })
+    .onFailure((e, chain) -> {
+        System.err.println("Logging error: " + e.getMessage());
+        // Propagate the failure: the executor's future will complete exceptionally
+        chain.fail(e);
+    })
+    .build()
+    .start(new DefaultContext());
+```
+
+#### 2. Handling and Recovery
+If you want to handle the error and finish the execution "cleanly" (completing the `CompletableFuture` successfully), use `chain.next()`. Note that calling `next()` in a failure handler terminates the chain execution; it does not resume from the failed command.
+
+```java
+CommandExecutor.pipelineBuilder()
+    .exec(ctx -> { throw new RuntimeException("Recoverable error"); })
+    .onFailure((e, chain) -> {
+        System.out.println("Handling error and finishing cleanly...");
+        // Finish the chain execution: the executor's future will complete successfully
+        chain.next();
+    })
+    .build()
+    .start(new DefaultContext());
+```
+
 ---
 
 ## Technical Details
