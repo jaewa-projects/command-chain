@@ -23,8 +23,10 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+
 
 @ExtendWith(MockitoExtension.class)
 class CommandExecutorTest {
@@ -105,15 +107,42 @@ class CommandExecutorTest {
     }
 
     @Test
-    void testExecuteWithFailure() {
+    void testFailureWithoutHandler() {
+        RuntimeException testException = new RuntimeException("Test error");
 
         doAnswer(invocation -> {
-            ((CommandChain)invocation.getArgument(1)).fail(new IllegalStateException());
+            ((CommandChain) invocation.getArgument(1)).fail(testException);
             return null;
         }).when(command1).execute(any(), any());
+
+        CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(command2)
+                .build();
+
+        ExecutionException ee = assertThrows(ExecutionException.class,
+                () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
+        assertEquals(testException, ee.getCause());
+
+        InOrder inOrder = inOrder(command1, command2);
+        inOrder.verify(command1).execute(context, commandExecutor);
+
+        verifyNoMoreInteractions(command1, command2);
+    }
+
+    @Test
+    void testFailureWithHandlerThatFails() {
+        RuntimeException testException = new RuntimeException("Test error");
+        RuntimeException handlerException = new RuntimeException("Handler error");
+
         doAnswer(invocation -> {
-            assertEquals(IllegalStateException.class, invocation.getArgument(0).getClass());
-            ((CommandChain)invocation.getArgument(1)).next();
+            ((CommandChain) invocation.getArgument(1)).fail(testException);
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            assertEquals(testException, invocation.getArgument(0));
+            ((CommandChain) invocation.getArgument(1)).fail(handlerException);
             return null;
         }).when(failureHandler).execute(any(), any());
 
@@ -123,27 +152,36 @@ class CommandExecutorTest {
                 .onFailure(failureHandler)
                 .build();
 
-        assertThrows(ExecutionException.class, () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
+        ExecutionException ee = assertThrows(ExecutionException.class,
+                () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
+        assertEquals(handlerException, ee.getCause());
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
         inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(failureHandler).execute(argThat(IllegalStateException.class::isInstance), eq(commandExecutor));
+        inOrder.verify(failureHandler).execute(testException, commandExecutor);
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
 
     @Test
-    void testExecuteWithUncheckedFailure() {
+    void testFailureWithHandlerThatRecovers() throws Exception {
+        RuntimeException testException = new RuntimeException("Test error");
 
         doAnswer(invocation -> {
-            throw new IllegalStateException();
+            ((CommandChain) invocation.getArgument(1)).fail(testException);
+            return null;
         }).when(command1).execute(any(), any());
+
         doAnswer(invocation -> {
-            assertEquals(IllegalStateException.class, invocation.getArgument(0).getClass());
-            ((CommandChain)invocation.getArgument(1)).next();
+            assertEquals(testException, invocation.getArgument(0));
+            ((CommandChain) invocation.getArgument(1)).next();
             return null;
         }).when(failureHandler).execute(any(), any());
 
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
                 .exec(command1)
@@ -151,14 +189,16 @@ class CommandExecutorTest {
                 .onFailure(failureHandler)
                 .build();
 
-        assertThrows(ExecutionException.class, () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
         inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(failureHandler).execute(argThat(IllegalStateException.class::isInstance), eq(commandExecutor));
+        inOrder.verify(failureHandler).execute(testException, commandExecutor);
+        inOrder.verify(command2).execute(context, commandExecutor);
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
+
 
     @Test
     void testInterrupt() {
@@ -168,11 +208,6 @@ class CommandExecutorTest {
             ((CommandChain)invocation.getArgument(1)).next();
             return null;
         }).when(command1).execute(any(), any());
-        doAnswer(invocation -> {
-            assertEquals(CommandInterruptedException.class, invocation.getArgument(0).getClass());
-            ((CommandChain)invocation.getArgument(1)).next();
-            return null;
-        }).when(failureHandler).execute(any(), any());
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
                 .exec(command1)
@@ -184,7 +219,6 @@ class CommandExecutorTest {
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
         inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(failureHandler).execute(argThat(CommandInterruptedException.class::isInstance), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }

@@ -94,27 +94,6 @@ class CommandsTest {
     }
 
     @Test
-    void testInterruptibleCommand() {
-        when(context.isInterrupted()).thenReturn(true);
-
-        AsyncCommand interruptible = Commands.interruptible(mockAsyncCommand);
-        interruptible.execute(context, chain);
-
-        verify(chain).fail(any(CommandInterruptedException.class));
-        verify(mockAsyncCommand, never()).execute(any(), any());
-    }
-
-    @Test
-    void testInterruptibleCommandNotInterrupted() {
-        when(context.isInterrupted()).thenReturn(false);
-
-        AsyncCommand interruptible = Commands.interruptible(mockAsyncCommand);
-        interruptible.execute(context, chain);
-
-        verify(mockAsyncCommand).execute(context, chain);
-    }
-
-    @Test
     void testSafeCommand() {
         RuntimeException ex = new RuntimeException("error");
         doThrow(ex).when(mockAsyncCommand).execute(any(), any());

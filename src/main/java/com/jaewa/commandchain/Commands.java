@@ -283,14 +283,4 @@ public class Commands {
         };
     }
 
-    static AsyncCommand interruptible(AsyncCommand cmd) {
-        return (ctx, chain) -> {
-            if (ctx.isInterrupted()) {
-                chain.fail(new CommandInterruptedException());
-            } else {
-                cmd.execute(ctx, chain);
-            }
-        };
-    }
-
 }

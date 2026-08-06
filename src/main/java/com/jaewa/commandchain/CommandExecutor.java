@@ -10,7 +10,6 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.jaewa.commandchain.Commands.interruptible;
 import static com.jaewa.commandchain.Commands.safe;
 
 /**
@@ -57,7 +56,7 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     private AsyncFailureHandler failureHandler;
 
-    private Throwable failure = null;
+    private boolean failureHandlerHasHandled;
 
     private CompletableFuture<Void> future;
 
@@ -111,13 +110,12 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * Adds an asynchronous command to the command queue with the specified name.
      * The command is wrapped to ensure it handles interruptions and exceptions gracefully.
      *
-     * @param cmd  the asynchronous command to be added
+     * @param cmd the asynchronous command to be added
      */
     public synchronized void add(AsyncCommand cmd) {
-        commandSource.add(interruptible(safe(cmd)));
+        commandSource.add(safe(cmd));
         if (continuous && future.isDone()) {
             future = new CompletableFuture<>();
-            failure = null;
             next();
         }
     }
@@ -177,7 +175,7 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
         currentContext = ctx;
         future = new CompletableFuture<>();
         commandSource.init();
-        failure = null;
+        failureHandlerHasHandled = false;
         next();
         return future;
     }
@@ -185,32 +183,27 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
 
     @Override
     public synchronized void next() {
-        if (failure != null) {
-            future.completeExceptionally(failure);
-            return;
-        }
-        AsyncCommand cmd = commandSource.next();
-
-        if (cmd != null) {
-            log.info("Executing command: {}", cmd);
-            executeCommandAsync(cmd);
-        } else {
-            future.complete(null);
+        if (currentContext.isInterrupted()) {
+            log.warn("Execution interrupted");
+            future.completeExceptionally(new CommandInterruptedException());
+        }else {
+            AsyncCommand cmd = commandSource.next();
+            if (cmd != null) {
+                log.info("Executing command: {}", cmd);
+                executeCommandAsync(cmd);
+            } else {
+                future.complete(null);
+            }
         }
     }
 
     @Override
     public void fail(Throwable e) {
-        if (failure != null) {
-            log.error("Command chain already failed", e);
-            future.completeExceptionally(failure);
+        if (!failureHandlerHasHandled && failureHandler != null) {
+            failureHandlerHasHandled = true;
+            failureHandler.execute(e, this);
         } else {
-            failure = e;
-            if (failureHandler != null) {
-                failureHandler.execute(e, this);
-            } else {
-                future.completeExceptionally(e);
-            }
+            future.completeExceptionally(e);
         }
     }
 
