@@ -109,7 +109,7 @@ class TryCatchCommandTest {
     }
 
     @Test
-    void testTryNoCatch() throws ExecutionException, InterruptedException, TimeoutException {
+    void testTryNoCatch() {
         //@formatter:off
         CommandExecutor executor = builder
                 .doTry()
@@ -135,7 +135,7 @@ class TryCatchCommandTest {
     }
 
     @Test
-    void testTryNoCatchFinally() throws ExecutionException, InterruptedException, TimeoutException {
+    void testTryNoCatchFinally() {
         //@formatter:off
         CommandExecutor executor = builder
                 .doTry()
@@ -169,7 +169,7 @@ class TryCatchCommandTest {
     }
 
     @Test
-    void testTryFinally() throws ExecutionException, InterruptedException, TimeoutException {
+    void testTryFinally() {
         //@formatter:off
         CommandExecutor executor = builder
                 .doTry()
@@ -299,7 +299,7 @@ class TryCatchCommandTest {
     }
 
     @Test
-    void testTryCatchFinallyWithExceptionInCatch() throws ExecutionException, InterruptedException, TimeoutException {
+    void testTryCatchFinallyWithExceptionInCatch() {
         //@formatter:off
         CommandExecutor executor = builder
                 .doTry()
@@ -338,7 +338,7 @@ class TryCatchCommandTest {
     }
 
     @Test
-    void testTryCatchFinallyWithExceptionInCatchAndFinally() throws ExecutionException, InterruptedException, TimeoutException {
+    void testTryCatchFinallyWithExceptionInCatchAndFinally() {
         //@formatter:off
         CommandExecutor executor = builder
                 .doTry()

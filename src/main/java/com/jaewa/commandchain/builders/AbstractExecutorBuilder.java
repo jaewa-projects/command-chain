@@ -110,7 +110,6 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
      * the current builder. The {@code ChoiceExecutorBuilder} facilitates the configuration
      * of conditional command execution logic, allowing for branching execution flows
      * based on specific conditions.
-     *
      * The created {@code ChoiceExecutorBuilder} is added to the current
      * {@link CommandExecutor} as part of the ongoing command configuration.
      *

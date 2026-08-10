@@ -7,7 +7,6 @@ import java.util.Map;
  * Represents a command block that simulates a try-catch-finally control flow structure.
  * This class enables executing a series of asynchronous commands and handling exceptions
  * as well as final clean-up tasks within a controlled execution flow.
- *
  * The TryCatchCommand supports the following:
  * - Defining a "try" block using a default executor.
  * - Adding multiple "catch" blocks, each associated with a specific exception type.
@@ -57,9 +56,7 @@ public class TryCatchCommand implements CommandBlock {
 
     @Override
     public void execute(Context ctx, CommandChain chain) {
-        tryExecutor.start(ctx).whenComplete((r, t) -> {
-            handleTryComplete(t, ctx, chain);
-        });
+        tryExecutor.start(ctx).whenComplete((r, t) -> handleTryComplete(t, ctx, chain));
     }
 
     public void handleTryComplete(Throwable t, Context ctx, CommandChain chain) {
