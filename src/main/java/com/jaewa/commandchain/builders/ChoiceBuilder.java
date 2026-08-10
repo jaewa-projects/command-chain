@@ -6,21 +6,21 @@ import com.jaewa.commandchain.CommandExecutor;
 import com.jaewa.commandchain.Context;
 import java.util.function.Predicate;
 
-public class ChoiceExecutorBuilder<P extends AbstractExecutorBuilder<?>> extends AbstractOngoingBuilder<CommandBlockBuilder<P>, P> {
+public class ChoiceBuilder<P extends AbstractExecutorBuilder<?>> extends AbstractOngoingBuilder<ChoiceBuilder<P>, P> {
 
     private final ChoiceCommand choiceCommand;
 
-    public ChoiceExecutorBuilder(P parentBuilder) {
+    public ChoiceBuilder(P parentBuilder) {
         super(parentBuilder);
         choiceCommand = new ChoiceCommand();
     }
 
-    public CommandBlockBuilder<ChoiceExecutorBuilder<P>> when(Predicate<Context> condition) {
+    public CommandBlockBuilder<ChoiceBuilder<P>> when(Predicate<Context> condition) {
         choiceCommand.when(condition);
         return new CommandBlockBuilder<>(choiceCommand, this);
     }
 
-    public CommandBlockBuilder<ChoiceExecutorBuilder<P>> otherwise() {
+    public CommandBlockBuilder<ChoiceBuilder<P>> otherwise() {
         choiceCommand.when(c -> true);
         return new CommandBlockBuilder<>(choiceCommand, this);
     }
