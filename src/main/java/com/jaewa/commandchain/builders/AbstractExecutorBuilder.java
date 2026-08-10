@@ -105,8 +105,26 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
         return result;
     }
 
-    public ChoiceExecutorBuilder<B> choice() {
-        ChoiceExecutorBuilder<B> result = new ChoiceExecutorBuilder<>(self());
+    /**
+     * Creates and returns a new {@link ChoiceBuilder} instance associated with
+     * the current builder. The {@code ChoiceExecutorBuilder} facilitates the configuration
+     * of conditional command execution logic, allowing for branching execution flows
+     * based on specific conditions.
+     *
+     * The created {@code ChoiceExecutorBuilder} is added to the current
+     * {@link CommandExecutor} as part of the ongoing command configuration.
+     *
+     * @return a {@link ChoiceBuilder} instance for configuring conditional
+     *         execution logic
+     */
+    public ChoiceBuilder<B> choice() {
+        ChoiceBuilder<B> result = new ChoiceBuilder<>(self());
+        getCommandExecutor().add(result.build());
+        return result;
+    }
+
+    public TryCatchFinallyBuilder<B> doTry() {
+        TryCatchFinallyBuilder<B> result = new TryCatchFinallyBuilder<>(self());
         getCommandExecutor().add(result.build());
         return result;
     }
