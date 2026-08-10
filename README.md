@@ -144,7 +144,37 @@ executor.add(ctx -> System.out.println("Final Step: Done"));
 executor.start(new DefaultContext());
 ```
 
-### 5. Continuous Execution Mode
+### 5. Advanced Error Handling: `TryCatchCommand`
+You can simulate the Java try-catch-finally structure within your command chain using `TryCatchCommand`. This is useful for scoped error handling where you want to catch specific exceptions and ensure cleanup logic runs regardless of success or failure.
+
+```java
+import com.jaewa.commandchain.TryCatchCommand;
+import com.jaewa.commandchain.CommandExecutor;
+import java.io.IOException;
+
+CommandExecutor executor = new CommandExecutor();
+
+TryCatchCommand tryCatch = new TryCatchCommand();
+
+// The default block is the 'try' block
+tryCatch.add(ctx -> {
+    System.out.println("Attempting risky operation...");
+    if (Math.random() > 0.5) throw new IOException("Network failure");
+});
+
+// Define a 'catch' block for IOException
+tryCatch.doCatch(IOException.class);
+tryCatch.add(ctx -> System.out.println("Caught IOException, handling..."));
+
+// Define an optional 'finally' block
+tryCatch.doFinally();
+tryCatch.add(ctx -> System.out.println("Cleanup after try/catch"));
+
+executor.add(tryCatch);
+executor.start(new DefaultContext());
+```
+
+### 6. Continuous Execution Mode
 In continuous mode, the executor stays alive even after completing all current commands. It waits for new commands to be added via `add()`. This is ideal for background workers or event processors.
 
 ```java
@@ -225,6 +255,28 @@ CommandExecutor.pipelineBuilder()
         .end()
     .end()
     .exec(ctx -> System.out.println("Finalizing..."))
+    .build()
+    .start(new DefaultContext());
+```
+
+### 4. Advanced Error Handling: Try-Catch-Finally
+The builder provides a `doTry()` method to implement scoped error handling fluently.
+
+```java
+import java.io.IOException;
+
+CommandExecutor.pipelineBuilder()
+    .doTry()
+        .exec(ctx -> {
+            System.out.println("Trying something risky...");
+            if (Math.random() > 0.5) throw new IOException("Failed!");
+        })
+    .doCatch(IOException.class)
+        .exec(ctx -> System.out.println("Handled IOException"))
+    .doFinally()
+        .exec(ctx -> System.out.println("Always executed"))
+    .end() // Close the try-catch block
+    .exec(ctx -> System.out.println("Post try-catch work"))
     .build()
     .start(new DefaultContext());
 ```
