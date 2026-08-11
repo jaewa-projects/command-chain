@@ -17,7 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -69,8 +71,8 @@ class CommandExecutorTest {
         commandExecutor.start(context).get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
-        inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(command2).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
@@ -97,8 +99,8 @@ class CommandExecutorTest {
         commandExecutor.start(context).get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
-        inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(command2).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
@@ -110,7 +112,7 @@ class CommandExecutorTest {
         doAnswer(invocation -> {
             ((CommandChain) invocation.getArgument(1)).fail(testException);
             return null;
-        }).when(command1).execute(any(), any());
+        }).when(command1).execute(any(Context.class), any());
 
         CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
                 .exec(command1)
@@ -122,7 +124,7 @@ class CommandExecutorTest {
         assertEquals(testException, ee.getCause());
 
         InOrder inOrder = inOrder(command1, command2);
-        inOrder.verify(command1).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2);
     }
@@ -154,7 +156,7 @@ class CommandExecutorTest {
         assertEquals(handlerException, ee.getCause());
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
-        inOrder.verify(command1).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
         inOrder.verify(failureHandler).execute(testException, commandExecutor);
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
@@ -189,9 +191,9 @@ class CommandExecutorTest {
         commandExecutor.start(context).get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
-        inOrder.verify(command1).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
         inOrder.verify(failureHandler).execute(testException, commandExecutor);
-        inOrder.verify(command2).execute(context, commandExecutor);
+        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
@@ -215,7 +217,7 @@ class CommandExecutorTest {
         assertThrows(ExecutionException.class, () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
-        inOrder.verify(command1).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
@@ -277,9 +279,9 @@ class CommandExecutorTest {
         commandExecutor.start(context).get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, command3);
-        inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(command2).execute(context, commandExecutor);
-        inOrder.verify(command3).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command3).execute(any(Context.class), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2, command3);
     }
@@ -314,9 +316,9 @@ class CommandExecutorTest {
         future.get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, command3);
-        inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(command2).execute(context, commandExecutor);
-        inOrder.verify(command3).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command3).execute(any(Context.class), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2, command3);
 
@@ -352,9 +354,9 @@ class CommandExecutorTest {
         future.get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, command3);
-        inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(command2).execute(context, commandExecutor);
-        inOrder.verify(command3).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command3).execute(any(Context.class), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2, command3);
 
@@ -386,11 +388,11 @@ class CommandExecutorTest {
 
         InOrder inOrder = inOrder(command1, command2);
         // First execution
-        inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(command2).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
         // Second execution
-        inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(command2).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2);
     }
@@ -421,8 +423,8 @@ class CommandExecutorTest {
 
         InOrder inOrder = inOrder(command1, command2);
         // Only first execution
-        inOrder.verify(command1).execute(context, commandExecutor);
-        inOrder.verify(command2).execute(context, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
 
         verifyNoMoreInteractions(command1, command2);
     }
@@ -465,16 +467,15 @@ class CommandExecutorTest {
 
     @Test
     void testInterruptMethod() {
-        Context mockContext = mock(Context.class);
         CommandExecutor executor = new CommandExecutor();
         
         // Test interrupt with null context
         executor.interrupt(); // Should not throw exception
         
-        executor.start(mockContext);
+        executor.start(context);
         
         executor.interrupt();
-        verify(mockContext).interrupt();
+        assertTrue(context.isInterrupted());
     }
 
     @Test
@@ -483,7 +484,7 @@ class CommandExecutorTest {
         assertNull(executor.getCurrentContext());
         
         executor.start(context);
-        assertEquals(context, executor.getCurrentContext());
+        assertNotNull(executor.getCurrentContext());
     }
 
     @Test
@@ -530,6 +531,5 @@ class CommandExecutorTest {
         
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(mockChain).fail(ex));
     }
-
 
 }

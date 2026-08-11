@@ -172,7 +172,7 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
         if (ctx == null) {
             throw new IllegalArgumentException("Context cannot be null");
         }
-        currentContext = ctx;
+        currentContext = new DefaultContext(ctx);
         future = new CompletableFuture<>();
         commandSource.init();
         failureHandlerHasHandled = false;

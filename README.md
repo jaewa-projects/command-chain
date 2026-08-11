@@ -342,20 +342,63 @@ The heart of the library is the `AsyncCommand`. When a command is executed, the 
 ### Shared Context
 A `Context` object is passed to every step, allowing you to share data across the algorithm's execution. It supports type-safe retrieval of stored values.
 
+#### Scoping and Visibility
+The execution `Context` works similarly to **local variables in Java blocks** (like inside a `for`, `if`, or `try-catch`). 
+
+When a command block is nested (e.g., inside a `choice()`, `loop()`, or `doTry()`):
+- **Read Access**: The inner block can read all variables defined in the parent context.
+- **Write Isolation**: Variables set or modified inside a child block are local to that block. The parent context remains unchanged.
+- **Shadowing**: If a child block sets a variable with the same name as one in the parent, it "shadows" the parent value within that block without affecting the parent's original value.
+
+#### Examples
+
 ```java
-// Set a value
+// 1. Basic Set and Get
 ctx.set("user_id", "12345");
+String userId = ctx.get("user_id", String.class); // "12345"
 
-// Retrieve a value with type safety
-String userId = ctx.get("user_id", String.class);
+// 2. Child can read from Parent
+executor.add(ctx -> ctx.set("globalVar", "hello"));
+executor.loop(new ForLoop<>("i", () -> 0, i -> i < 1, i -> i + 1))
+    .exec(ctx -> {
+        // Reads from parent context
+        String val = ctx.get("globalVar", String.class); // "hello"
+    })
+.end();
 
-// Retrieve with a default value if not present
-Integer score = ctx.getOrDefault("score", Integer.class, 0);
+// 3. Parent cannot read from Child (Isolation)
+executor.choice()
+    .when(ctx -> true)
+        .exec(ctx -> ctx.set("childVar", "secret"))
+    .end()
+.end();
+executor.exec(ctx -> {
+    // childVar is not visible here
+    Object val = ctx.get("childVar", Object.class); // null
+});
 
+// 4. Shadowing
+ctx.set("theme", "light");
+// Inside a nested block...
+ctx.set("theme", "dark"); 
+ctx.get("theme", String.class); // "dark" (shadowed)
+// Back in the parent block...
+ctx.get("theme", String.class); // "light" (original value preserved)
+```
+
+#### Interruption Handling
+The context also manages an interruption flag that propagates through the hierarchy.
+- If a **parent** is interrupted, all its **children** are automatically considered interrupted.
+- If a **child** is interrupted, the signal is propagated up to the **parent** (triggering a global halt if necessary).
+
+```java
 // Check for interruption
 if (ctx.isInterrupted()) {
     return; // Stop processing
 }
+
+// Signal interruption
+ctx.interrupt();
 ```
 
 ### Thread Management
