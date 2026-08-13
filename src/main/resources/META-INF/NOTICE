@@ -1,0 +1,16 @@
+Jaewa Command Chain
+Copyright 2026 Jaewa
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+-------------------------------------------------------------------------------
+Librerie di terze parti:
+
+* Apache Commons Lang (https://commons.apache.org/proper/commons-lang/)
+  Copyright 2001-2025 The Apache Software Foundation
+  Licensed under the Apache License, Version 2.0.
+
+* SLF4J (https://www.slf4j.org/)
+  Copyright (c) 2004-2025 QOS.ch
+  Licensed under the MIT License.
