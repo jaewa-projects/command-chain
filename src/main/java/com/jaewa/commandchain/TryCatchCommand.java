@@ -20,16 +20,29 @@ public class TryCatchCommand implements CommandBlock {
 
     private CommandExecutor currentExecutor;
 
+    /**
+     * Creates a new TryCatchCommand.
+     */
     public TryCatchCommand() {
         tryExecutor = new CommandExecutor();
         catchExecutors = new HashMap<>();
         this.currentExecutor = tryExecutor;
     }
 
+    /**
+     * Adds an asynchronous command to the current block.
+     *
+     * @param cmb the asynchronous command to be added
+     */
     public void add(AsyncCommand cmb) {
         currentExecutor.add(cmb);
     }
 
+    /**
+     * Adds a catch block for the specified exception type.
+     *
+     * @param exceptionType the exception type to catch
+     */
     public void doCatch(Class<? extends Throwable> exceptionType) {
         if (catchExecutors.containsKey(exceptionType)) {
             throw new IllegalArgumentException("Catch block already exists for exception type: " + exceptionType);
@@ -40,6 +53,9 @@ public class TryCatchCommand implements CommandBlock {
         this.currentExecutor = catchBlock;
     }
 
+    /**
+     * Adds a finally block.
+     */
     public void doFinally() {
         if(this.finallyExecutor != null){
             throw new IllegalArgumentException("Finally block already exists");
@@ -59,6 +75,13 @@ public class TryCatchCommand implements CommandBlock {
         tryExecutor.start(ctx).whenComplete((r, t) -> handleTryComplete(t, ctx, chain));
     }
 
+    /**
+     * Handles the completion of the try block.
+     *
+     * @param t     the exception thrown during try execution, or null if successful
+     * @param ctx   the execution context
+     * @param chain the command chain
+     */
     public void handleTryComplete(Throwable t, Context ctx, CommandChain chain) {
         if (t != null) {
             handleFailure(t, ctx, chain);

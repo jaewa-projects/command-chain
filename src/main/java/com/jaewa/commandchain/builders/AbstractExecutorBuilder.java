@@ -7,7 +7,6 @@ import com.jaewa.commandchain.Command;
 import com.jaewa.commandchain.CommandExecutor;
 import com.jaewa.commandchain.Commands;
 import com.jaewa.commandchain.FailureHandler;
-import com.jaewa.commandchain.Loop;
 
 /**
  * An abstract builder class that provides a fluent API for constructing and configuring
@@ -24,7 +23,7 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
     }
 
     /**
-     * Adds a command to the command executor with the specified name and returns the current builder instance.
+     * Adds a command to the command executor and returns the current builder instance.
      * The provided command is executed asynchronously.
      *
      * @param cmd  the command to be executed asynchronously
@@ -36,7 +35,7 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
     }
 
     /**
-     * Adds an asynchronous command to the command executor with the specified name and returns the current builder instance.
+     * Adds an asynchronous command to the command executor and returns the current builder instance.
      * The provided command is executed asynchronously as part of the command execution flow.
      *
      * @param cmd  the asynchronous command to be executed
@@ -48,7 +47,7 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
     }
 
     /**
-     * Adds a wiretap to the command executor with the specified name and returns the current builder instance.
+     * Adds a wiretap to the command executor and returns the current builder instance.
      * The provided {@code Runnable} is executed each time the associated command is processed,
      * allowing for side-effect operations such as logging or monitoring.
      *
@@ -92,10 +91,10 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
     }
 
     /**
-     * Adds a looping executor to the command executor with the specified name.
-     * The looping executor repeatedly executes commands as defined by the {@link Loop} interface.
+     * Adds a looping executor to the command executor.
+     * The looping executor repeatedly executes commands as defined by the {@link AbstractLoop} interface.
      *
-     * @param loop the {@code Loop} implementation defining the initialization, iteration,
+     * @param loop the {@code AbstractLoop} implementation defining the initialization, iteration,
      *             and termination logic of the loop
      * @return a builder to further configure the loop executor
      */
@@ -122,11 +121,30 @@ public abstract class AbstractExecutorBuilder<B extends AbstractExecutorBuilder<
         return result;
     }
 
+    /**
+     * Creates and returns a new {@link TryCatchFinallyBuilder} instance associated with
+     * the current builder. This facilitates the configuration of try-catch-finally
+     * execution logic.
+     *
+     * @return a {@link TryCatchFinallyBuilder} instance for configuring error handling
+     *         and finalization logic
+     */
     public TryCatchFinallyBuilder<B> doTry() {
         TryCatchFinallyBuilder<B> result = new TryCatchFinallyBuilder<>(self());
         getCommandExecutor().add(result.build());
         return result;
     }
 
+    /**
+     * Creates a new AbstractExecutorBuilder.
+     */
+    protected AbstractExecutorBuilder() {
+    }
+
+    /**
+     * Retrieves the {@link CommandExecutor} managed by this builder.
+     *
+     * @return the command executor instance
+     */
     protected abstract CommandExecutor getCommandExecutor();
 }

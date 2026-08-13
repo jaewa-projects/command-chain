@@ -148,6 +148,12 @@ public class Commands {
         };
     }
 
+    /**
+     * Creates an asynchronous wrapper that ensures the command is executed on the Event Queue.
+     *
+     * @param h the failure handler
+     * @return the asynchronous failure handler
+     */
     public static AsyncFailureHandler onEventQueue(FailureHandler h) {
         return onEventQueue(async(h));
     }
@@ -214,10 +220,27 @@ public class Commands {
         };
     }
 
+    /**
+     * Creates a conditional command that executes the {@code trueCommand} if the condition is met.
+     * Otherwise, it immediately proceeds to the next command in the chain.
+     *
+     * @param condition    the condition to evaluate
+     * @param trueCommand the command to execute if the condition is true
+     * @return a conditional {@link AsyncCommand}
+     */
     public static AsyncCommand conditional(Predicate<Context> condition, AsyncCommand trueCommand) {
         return conditional(condition, trueCommand, (ctx, chain) -> chain.next());
     }
 
+    /**
+     * Creates a conditional command that executes {@code trueCommand} if the condition is met,
+     * or {@code falseCommand} otherwise.
+     *
+     * @param condition     the condition to evaluate
+     * @param trueCommand  the command to execute if the condition is true
+     * @param falseCommand the command to execute if the condition is false
+     * @return a conditional {@link AsyncCommand}
+     */
     public static AsyncCommand conditional(Predicate<Context> condition, AsyncCommand trueCommand, AsyncCommand falseCommand) {
         return (ctx, chain) -> {
             if (condition.test(ctx)) {

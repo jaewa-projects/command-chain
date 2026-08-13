@@ -1,7 +1,7 @@
 package com.jaewa.commandchain;
 
 /**
- * <h1>Command</h1>
+ * <b>Command</b>
  * <p>
  * Represents a generic command in a command chain architecture.
  * Implementations of this interface define a unit of work or behavior

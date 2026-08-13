@@ -13,6 +13,11 @@ public abstract class AbstractOngoingBuilder<B extends AbstractExecutorBuilder<?
 
     private final P parentBuilder;
 
+    /**
+     * Creates a new AbstractOngoingBuilder.
+     *
+     * @param parentBuilder the parent builder
+     */
     protected AbstractOngoingBuilder(P parentBuilder) {
         this.parentBuilder = parentBuilder;
     }

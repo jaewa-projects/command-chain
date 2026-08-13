@@ -3,10 +3,18 @@ package com.jaewa.commandchain.builders;
 import com.jaewa.commandchain.CommandExecutor;
 import com.jaewa.commandchain.CommandSource;
 
+/**
+ * Builder for the main command executor.
+ */
 public class MainExecutorBuilder extends AbstractExecutorBuilder<MainExecutorBuilder> {
 
     private final CommandExecutor commandExecutor;
 
+    /**
+     * Creates a new MainExecutorBuilder.
+     *
+     * @param commandSource the source of commands for the executor
+     */
     public MainExecutorBuilder(CommandSource commandSource) {
         commandExecutor = new CommandExecutor(commandSource);
     }

@@ -1,9 +1,21 @@
 package com.jaewa.commandchain;
 
+/**
+ * Abstract base class for loop implementations.
+ * It manages the loop executor and provides the framework for iterative execution.
+ */
 public abstract class AbstractLoop implements Loop, CommandBlock {
     private final String varName;
+    /**
+     * The executor used to run the commands within the loop.
+     */
     protected CommandExecutor loopExecutor;
 
+    /**
+     * Creates a new AbstractLoop.
+     *
+     * @param varName the name of the variable to store this loop instance in the context
+     */
     protected AbstractLoop(String varName) {
         this.varName = varName;
         loopExecutor = new CommandExecutor();
@@ -17,6 +29,9 @@ public abstract class AbstractLoop implements Loop, CommandBlock {
         init();
     }
 
+    /**
+     * Initializes the loop state.
+     */
     protected abstract void init();
 
     @Override

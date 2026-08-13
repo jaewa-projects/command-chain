@@ -7,11 +7,10 @@ package com.jaewa.commandchain;
  */
 public interface CommandSource {
     /**
-     * Adds a named asynchronous command to the command source. This method is used to
+     * Adds an asynchronous command to the command source. This method is used to
      * register a command that can be later executed as part of a command chain.
      *
-     * @param command the asynchronous command to be added, which defines its execution
-     *                logic and interactions within the command chain
+     * @param command the asynchronous command to be added
      */
     void add(AsyncCommand command);
 
@@ -26,12 +25,12 @@ public interface CommandSource {
     void init();
 
     /**
-     * Retrieves the next asynchronous command from the command source along with its associated name.
+     * Retrieves the next asynchronous command from the command source.
      * This method is typically used to iterate over the available commands in a predefined order,
      * as determined by the implementation of the command source.
      *
-     * @return a pair consisting of a string representing the command's name and the corresponding
-     * {@link AsyncCommand} instance, or {@code null} if there are no more commands available.
+     * @return the corresponding {@link AsyncCommand} instance, or {@code null} if there are 
+     *         no more commands available.
      */
     AsyncCommand next();
 }

@@ -92,23 +92,28 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
     }
 
     /**
-     * Constructs a new instance of {@code CommandExecutor} with the specified context.
-     * The provided {@code Context} object will be used to manage shared state,
-     * handle interruptions, and facilitate data sharing during the execution
-     * of the command chain.
-     *
+     * Constructs a new instance of {@code CommandExecutor}.
+     * This constructor initializes the executor with a {@link CommandPipeline}
+     * as the default command source.
      */
     public CommandExecutor() {
         this.commandSource = new CommandPipeline();
     }
 
+    /**
+     * Constructs a new instance of {@code CommandExecutor} with the specified command source.
+     *
+     * @param commandSource the {@link CommandSource} to be used by this executor
+     */
     public CommandExecutor(CommandSource commandSource) {
         this.commandSource = commandSource;
     }
 
     /**
-     * Adds an asynchronous command to the command queue with the specified name.
+     * Adds an asynchronous command to the command source.
      * The command is wrapped to ensure it handles interruptions and exceptions gracefully.
+     * If the executor is in continuous mode and has finished its previous execution,
+     * adding a command will trigger the execution of the next command.
      *
      * @param cmd the asynchronous command to be added
      */
@@ -158,6 +163,7 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
      * </p>
      *
      * @param ctx the {@code Context} object to be associated with this {@code CommandExecutor};
+     *            must not be {@code null}
      * @return a {@link Future} representing the lifecycle of the continuous execution
      * process, enabling control and observation over its asynchronous behavior,
      * such as checking completion or handling interruptions.

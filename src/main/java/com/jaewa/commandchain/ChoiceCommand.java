@@ -14,6 +14,9 @@ public class ChoiceCommand implements CommandBlock {
     private CommandExecutor currentExecutor;
     private final List<Pair<Predicate<Context>, CommandExecutor>> branches;
 
+    /**
+     * Creates a new ChoiceCommand.
+     */
     public ChoiceCommand() {
         branches = new ArrayList<>();
     }
