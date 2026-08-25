@@ -41,18 +41,76 @@ The `CommandExecutor` is the heart of the system. It manages a collection of com
 
 ### Commands: Async vs Sync
 
-The library distinguishes between two types of commands:
+The library provides two fundamental ways to define steps in your workflow: `AsyncCommand` and `Command`.
 
--   **AsyncCommand**: The core of the library. It receives a `CommandChain` object. The execution "stops" at this command until the command itself explicitly calls `chain.next()` or `chain.fail(throwable)`.
--   **Command**: A simple, synchronous step. Once the method returns, the system automatically moves to the next command.
-  If the command throws an exception, the `fail()` method of the CommandChain is automatically called with that
-  exception.
+#### 1. AsyncCommand (Explicit Flow Control)
 
-#### Why AsyncCommand?
+`AsyncCommand` is the foundational building block of the library:
+```java
+@FunctionalInterface
+public interface AsyncCommand {
+    void execute(Context ctx, CommandChain chain) throws Exception;
+}
+```
 
-Async commands are essential for operations that take time and finish asynchronously, such as calling an external REST API, waiting for a database query, or a user interaction.
+An `AsyncCommand` is **not asynchronous by itself**—it simply receives the execution context (`Context`) and the flow controller (`CommandChain`). However, **it is what enables the algorithm execution to become asynchronous**. The chain execution stops at this step until the command explicitly signals completion by calling `chain.next()` or reports an error via `chain.fail(throwable)`.
+
+##### Simple AsyncCommand without Asynchrony
+An `AsyncCommand` does not require background threads or `CompletableFuture`. It can simply perform a direct action and then manually advance the chain:
 
 ```java
+// Simple AsyncCommand: performs an action and explicitly calls next()
+AsyncCommand simpleStep = (ctx, chain) -> {
+    System.out.println("Executing simple step...");
+    ctx.set("status", "in_progress");
+    chain.next(); // Explicitly advance to the next command
+};
+```
+
+#### 2. Command (Synchronous & Automatic Flow Control)
+
+For standard, synchronous operations where you don't need manual flow control, you can use `Command`:
+
+```java
+@FunctionalInterface
+public interface Command {
+    void execute(Context ctx) throws Exception;
+}
+```
+
+`Command` can be used directly without dealing with the `CommandChain`:
+```java
+// Synchronous Command: no need to call chain.next()
+Command syncStep = ctx -> {
+    System.out.println("Executing synchronous step...");
+    ctx.set("key", "value");
+};
+```
+
+##### How Command works under the hood
+When you pass a `Command` to `exec()` (or use `Commands.async(cmd)`), it is **automatically converted into an `AsyncCommand`** under the hood:
+- When the `execute(ctx)` method returns normally, `chain.next()` is called automatically.
+- If the method throws an exception, it is caught and `chain.fail(exception)` is called automatically.
+
+Conceptually, the adaptation works as follows:
+```java
+// Behind the scenes conversion (Commands.async(cmd))
+(ctx, chain) -> {
+    try {
+        cmd.execute(ctx);
+        chain.next(); // Automatically advances on success
+    } catch (Exception e) {
+        chain.fail(e); // Automatically fails on exception
+    }
+}
+```
+
+#### 3. Asynchronous Operations with CompletableFuture
+
+The true power of `AsyncCommand` becomes evident when performing asynchronous or non-blocking tasks (such as HTTP calls, database queries, timers, or background processing). Because the chain only progresses when `chain.next()` is invoked, you can easily delegate `chain.next()` or `chain.fail()` to asynchronous callbacks:
+
+```java
+// Using an AsyncCommand with an asynchronous service
 (ctx, chain) -> {
     externalService.callAsync(data)
         .thenAccept(result -> {
@@ -66,9 +124,51 @@ Async commands are essential for operations that take time and finish asynchrono
 }
 ```
 
+Or using `handle`:
+```java
+(ctx, chain) -> {
+    CompletableFuture<String> future = someService.fetchData();
+    future.handle((res, ex) -> {
+        if (ex != null) {
+            chain.fail(ex); // Propagate error to the chain
+        } else {
+            ctx.set("data", res);
+            chain.next();   // Proceed with the result
+        }
+        return null;
+    });
+}
+```
+
 **Advantages**:
 -   **No Blocked Threads**: The system does not use any thread while waiting for the external API to complete. No thread is put in `wait()` state.
 -   **Resource Efficiency**: You can handle thousands of concurrent chains with a very small thread pool.
+
+#### 4. Passing CompletableFuture Directly (`Commands.async`)
+
+If you already have a `CompletableFuture`, you don't need to manually write callback boilerplate with `handle` or `thenAccept`. You can pass it directly to `exec()` using `Commands.async(future)` (or with static import `async(future)`):
+
+```java
+import static com.jaewa.commandchain.Commands.async;
+
+CompletableFuture<String> future = someService.fetchData();
+
+CommandExecutor.pipelineBuilder()
+    // Automatically calls chain.next() on completion, or chain.fail(e) on failure
+    .exec(async(future))
+    .build();
+```
+
+Under the hood, `Commands.async(future)` automatically registers completion handlers on the future:
+```java
+(ctx, chain) -> future.whenComplete((res, ex) -> {
+    if (ex != null) {
+        chain.fail(ex);
+    } else {
+        chain.next();
+    }
+});
+```
 
 ---
 
@@ -78,24 +178,35 @@ The library provides a fluent builder to compose complex algorithm chains.
 
 ### Simple Chains
 
-You can build chains using both synchronous and asynchronous commands. The `exec()` method is overloaded to accept various types.
+You can build chains using synchronous commands, asynchronous commands, or wrapped `CompletableFuture` instances.
 
 ```java
+import static com.jaewa.commandchain.Commands.async;
+
+CompletableFuture<String> externalFuture = someService.fetchData();
+
 CommandExecutor.pipelineBuilder()
-    // Synchronous command (auto-next)
+    // 1. Synchronous command (Command - auto-next and auto-fail on exception)
     .exec(ctx -> System.out.println("Step 1: Sync"))
     
-    // Asynchronous command (manual-next)
+    // 2. Simple Asynchronous command (AsyncCommand - manual next)
     .exec((ctx, chain) -> {
-        System.out.println("Step 2: Async start");
+        System.out.println("Step 2: Simple Async");
+        ctx.set("step", 2);
+        chain.next();
+    })
+    
+    // 3. Asynchronous command with background work
+    .exec((ctx, chain) -> {
+        System.out.println("Step 3: Async start");
         CompletableFuture.runAsync(() -> {
             try { Thread.sleep(1000); } catch (InterruptedException e) {}
-            System.out.println("Step 2: Async end");
+            System.out.println("Step 3: Async end");
             chain.next();
         });
     })
     
-    // Elaborate AsyncCommand with CompletableFuture
+    // 4. Elaborate AsyncCommand with CompletableFuture handling
     .exec((ctx, chain) -> {
         CompletableFuture<String> future = someService.fetchData();
         future.handle((res, ex) -> {
@@ -108,18 +219,22 @@ CommandExecutor.pipelineBuilder()
             return null;
         });
     })
+    
+    // 5. Directly passing a CompletableFuture via Commands.async
+    .exec(async(externalFuture))
+    
     .build()
     .start(new DefaultContext());
 ```
 
-### Overloaded `exec()` Behavior
+### `exec()` Behavior
 
 The `exec()` method (available on the builder) can receive:
 
--   **`Command`**: Executed synchronously; progression is automatic.
--   **`AsyncCommand`**: Executed asynchronously; progression requires `chain.next()`.
--   **`CompletableFuture<?>`**: The builder wraps it automatically. The chain proceeds when the future completes.
--   **`Runnable`**: Wrapped as a synchronous command.
+-   **`Command` (`ctx -> ...`)**: Executed synchronously. The builder automatically adapts it into an `AsyncCommand` (via `Commands.async(cmd)`) which calls `chain.next()` upon completion and `chain.fail(e)` if an exception occurs.
+-   **`AsyncCommand` (`(ctx, chain) -> ...`)**: Gives explicit flow control. Progression requires calling `chain.next()`, while errors are reported via `chain.fail(e)`.
+-   **`CompletableFuture<?>`** (via `Commands.async(future)` / `async(future)`): Wraps the future into an `AsyncCommand`. When the future completes normally, `chain.next()` is called automatically; when it completes exceptionally, `chain.fail(e)` is called automatically.
+-   **`Runnable`** (via `Commands.async(runnable)` or `wiretap(runnable)`): Can be adapted into an `AsyncCommand` or run as an independent side-effect.
 
 ### Wiretap (Side-effects)
 
