@@ -6,7 +6,7 @@
 
     <groupId>com.jaewa</groupId>
     <artifactId>command-chain</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <name>Jaewa Command Chain</name>
     <description>A lightweight library designed to orchestrate complex algorithms as a sequence of asynchronous steps</description>
     <url>https://jaewa.com</url>
