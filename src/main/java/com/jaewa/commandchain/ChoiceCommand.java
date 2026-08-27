@@ -39,7 +39,6 @@ public class ChoiceCommand implements CommandBlock {
      * Defines an "otherwise" branch for the command block, which serves as a fallback option
      * if no other branch conditions are met. The "otherwise" branch is guaranteed to execute
      * when all other conditions return {@code false}.
-     *
      * This method ensures that there is at most one "otherwise" branch defined for a given
      * command block. Attempting to define multiple "otherwise" branches will result in an
      * {@link IllegalStateException}.
