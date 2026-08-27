@@ -330,8 +330,8 @@ CommandExecutor.pipelineBuilder()
 
 You can define an error handler for the executor using `onFailure()`. The handler can receive the exception and the `CommandChain`.
 
--   **`chain.next()`**: "Swallows" the error. The executor completes successfully (but stops further commands in that executor).
--   **`chain.fail(ex)`**: Propagates the error or throws a new one.
+- **`chain.next()`**: Swallows the error and allows execution to continue without errors.
+- **`chain.fail(ex)`**: Propagates the error or throws a new one.
 
 ```java
 CommandExecutor.pipelineBuilder()

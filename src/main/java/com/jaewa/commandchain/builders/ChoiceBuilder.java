@@ -42,7 +42,7 @@ public class ChoiceBuilder<P extends AbstractExecutorBuilder<?>> extends Abstrac
      * @return a builder to configure the commands for the default branch
      */
     public CommandBlockBuilder<ChoiceBuilder<P>> otherwise() {
-        choiceCommand.when(c -> true);
+        choiceCommand.otherwise();
         return new CommandBlockBuilder<>(choiceCommand, this);
     }
 

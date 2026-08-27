@@ -13,6 +13,7 @@ import org.apache.commons.lang3.tuple.Pair;
 public class ChoiceCommand implements CommandBlock {
     private CommandExecutor currentExecutor;
     private final List<Pair<Predicate<Context>, CommandExecutor>> branches;
+    private boolean otherwiseDefined = false;
 
     /**
      * Creates a new ChoiceCommand.
@@ -32,6 +33,26 @@ public class ChoiceCommand implements CommandBlock {
     public void when(Predicate<Context> condition) {
         currentExecutor = new CommandExecutor();
         branches.add(Pair.of(condition, currentExecutor));
+    }
+
+    /**
+     * Defines an "otherwise" branch for the command block, which serves as a fallback option
+     * if no other branch conditions are met. The "otherwise" branch is guaranteed to execute
+     * when all other conditions return {@code false}.
+     *
+     * This method ensures that there is at most one "otherwise" branch defined for a given
+     * command block. Attempting to define multiple "otherwise" branches will result in an
+     * {@link IllegalStateException}.
+     *
+     * @throws IllegalStateException if the "otherwise" branch has already been defined
+     */
+    public void otherwise() {
+        if(!otherwiseDefined) {
+            otherwiseDefined = true;
+            when(context -> true);
+        }else{
+            throw new IllegalStateException("Otherwise branch already defined");
+        }
     }
 
     /**
