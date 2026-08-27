@@ -193,6 +193,7 @@
                                     <goal>sign</goal>
                                 </goals>
                                 <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
                                     <keyname>${gpg.keyname}</keyname>
                                     <gpgArguments>
                                         <arg>--pinentry-mode</arg>
