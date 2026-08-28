@@ -25,7 +25,7 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>com.jaewa</groupId>
     <artifactId>command-chain</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 </dependency>
 ```
 
@@ -427,7 +427,7 @@ The `Commands` utility class provides static decorators to wrap logic:
 -   **`onEventQueue(...)`**: Forces execution on the AWT Event Dispatch Thread (UI).
 -   **`wireTap(Runnable)`**: Executes a side-effect without blocking the main chain progression.
 -   **`conditional(Predicate, AsyncCommand)`**: Executes the command only if the condition is met.
--   **`named(String, Command)`**: Assigns a name for debugging/logging.
+-   **`logged(String, AsyncCommand)`**: Assigns a name for logging.
 -   **`withTimeout(long, TimeUnit, ...)`**: Wraps a `Command` or `AsyncCommand` with a maximum execution timeout, failing the chain with `CommandTimeoutException` if it does not complete in time.
 -   **`safe(AsyncCommand)`**: Wraps a command to catch exceptions and signal failure automatically.
 
@@ -437,7 +437,7 @@ import static com.jaewa.commandchain.Commands.*;
 
 builder.exec(onEventQueue(ctx -> label.setText("Updating UI...")))
        .exec(wireTap(() -> logger.info("Step reached")))
-       .exec(named("FetchData", async(api::call)))
+       .exec(logged("FetchData", async(api::call)))
        .exec(withTimeout(5, TimeUnit.SECONDS, (ctx, chain) -> {
            // Asynchronous task that must call chain.next() or fail() within 5 seconds
            api.fetchDataAsync().thenAccept(result -> {

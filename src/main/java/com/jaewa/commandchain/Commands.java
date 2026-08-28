@@ -10,7 +10,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import javax.swing.SwingUtilities;
-import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 
 /**
@@ -39,6 +41,8 @@ import org.apache.commons.lang3.StringUtils;
  * </ul>
  */
 public class Commands {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Commands.class);
 
     private Commands() {
 
@@ -257,48 +261,54 @@ public class Commands {
     }
 
     /**
-     * Creates a new {@code AsyncCommand} with the specified name and delegate command.
+     * Logs the execution of an asynchronous command with a specified name and default log level.
      *
-     * @param name the name to associate with the command. This will be used as the command's {@code toString()} representation.
-     * @param cmd  the {@code AsyncCommand} to be executed when the resulting command is invoked.
-     * @return a new {@code AsyncCommand} that delegates execution to the provided {@code cmd}
-     *         and overrides {@code toString()} to return the specified name.
+     * @param name the name associated with the command, used for logging purposes
+     * @param cmd the asynchronous command to be logged and executed
+     * @return the asynchronous command wrapped with logging behavior
      */
-    public static AsyncCommand named(String name, AsyncCommand cmd) {
-        return new AsyncCommand() {
-            @Override
-            public void execute(Context ctx, CommandChain chain) {
-                cmd.execute(ctx, chain);
-            }
+    public static AsyncCommand logged(String name, AsyncCommand cmd) {
+        return logged(name, Level.INFO, cmd);
+    }
 
-            @Override
-            public String toString() {
-                return StringUtils.isNotBlank(name) ? name : cmd.toString();
-            }
+    /**
+     * Wraps an {@code AsyncCommand} with logging functionality. Logs the execution
+     * of the command at the specified log level before and after it is executed.
+     *
+     * @param name the name of the command to be logged
+     * @param level the logging level at which to log the command execution
+     * @param cmd the {@code AsyncCommand} to be executed and logged
+     * @return a new {@code AsyncCommand} that includes the logging around the execution
+     */
+    public static AsyncCommand logged(String name, Level level, AsyncCommand cmd) {
+        return (ctx, chain) -> {
+            LOGGER.atLevel(level).log("Executing command: {}", name);
+            cmd.execute(ctx, chain);
+            LOGGER.atLevel(level).log("Executed command: {}", name);
         };
     }
 
     /**
-     * Creates and returns a new Command instance with a customized name.
-     * The returned Command execution delegates to the provided Command's execute method,
-     * while overriding its toString method to return the specified name.
+     * Creates and returns an asynchronous command wrapped with logging functionality.
      *
-     * @param name the name to associate with the new Command
-     * @param cmd  the original Command whose execute behavior will be used
-     * @return a new Command instance with the provided name and delegated behavior
+     * @param name the name used for identifying or labeling the logged command
+     * @param cmd the command to be executed and logged asynchronously
+     * @return an asynchronous command with logging capabilities
      */
-    public static Command named(String name, Command cmd) {
-        return new Command() {
-            @Override
-            public void execute(Context ctx) throws Exception {
-                cmd.execute(ctx);
-            }
+    public static AsyncCommand logged(String name, Command cmd) {
+        return logged(name, async(cmd));
+    }
 
-            @Override
-            public String toString() {
-                return StringUtils.isNotBlank(name) ? name : cmd.toString();
-            }
-        };
+    /**
+     * Wraps the provided command with logging capabilities at the specified log level.
+     *
+     * @param name the name to associate with the logged command
+     * @param level the logging level to use
+     * @param cmd the command to be wrapped with logging functionality
+     * @return an asynchronous command that includes logging behavior
+     */
+    public static AsyncCommand logged(String name, Level level, Command cmd) {
+        return logged(name, level, async(cmd));
     }
 
     private static final ScheduledExecutorService TIMEOUT_SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
