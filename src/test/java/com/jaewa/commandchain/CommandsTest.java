@@ -16,6 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -236,7 +238,7 @@ class CommandsTest {
     void testNamedAsyncCommand() {
         String name = "TestAsyncCommand";
         AsyncCommand named = Commands.named(name, mockAsyncCommand);
-        
+
         assertEquals(name, named.toString());
         named.execute(context, chain);
         verify(mockAsyncCommand).execute(context, chain);
@@ -256,7 +258,7 @@ class CommandsTest {
     void testNamedCommand() throws Exception {
         String name = "TestCommand";
         Command named = Commands.named(name, mockCommand);
-        
+
         assertEquals(name, named.toString());
         named.execute(context);
         verify(mockCommand).execute(context);
@@ -279,6 +281,159 @@ class CommandsTest {
         constructor.setAccessible(true);
         Commands instance = constructor.newInstance();
         assertNotNull(instance);
+    }
+
+    @Test
+    void testWithTimeoutCallsNextBeforeTimeout() {
+        doAnswer(invocation -> {
+            CommandChain cc = invocation.getArgument(1);
+            cc.next();
+            return null;
+        }).when(mockAsyncCommand).execute(any(), any());
+
+        AsyncCommand timed = Commands.withTimeout(200, TimeUnit.MILLISECONDS, mockAsyncCommand);
+        timed.execute(context, chain);
+
+        verify(chain).next();
+        verify(chain, never()).fail(any());
+    }
+
+    @Test
+    void testWithTimeoutCallsFailBeforeTimeout() {
+        Exception expectedEx = new RuntimeException("custom failure");
+        doAnswer(invocation -> {
+            CommandChain cc = invocation.getArgument(1);
+            cc.fail(expectedEx);
+            return null;
+        }).when(mockAsyncCommand).execute(any(), any());
+
+        AsyncCommand timed = Commands.withTimeout(200, TimeUnit.MILLISECONDS, mockAsyncCommand);
+        timed.execute(context, chain);
+
+        verify(chain).fail(expectedEx);
+        verify(chain, never()).next();
+    }
+
+    @Test
+    void testWithTimeoutExpiresAndCallsFailWithCommandTimeoutException() {
+        AsyncCommand timed = Commands.withTimeout(50, TimeUnit.MILLISECONDS, mockAsyncCommand);
+        timed.execute(context, chain);
+
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() ->
+                verify(chain).fail(isA(CommandTimeoutException.class))
+        );
+        verify(chain, never()).next();
+    }
+
+    @Test
+    void testWithTimeoutCommandCallsNextAfterTimeoutIsIgnored() {
+        AtomicBoolean timeoutDone = new AtomicBoolean(false);
+        AtomicBoolean commandDone = new AtomicBoolean(false);
+
+        AsyncCommand hangingCommand = (ctx, cc) -> new Thread(() -> {
+            await().atMost(1, TimeUnit.SECONDS).untilTrue(timeoutDone);
+            cc.next();
+            commandDone.set(true);
+        }).start();
+
+        AsyncCommand timed = Commands.withTimeout(50, TimeUnit.MILLISECONDS, hangingCommand);
+        timed.execute(context, chain);
+
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(chain).fail(isA(CommandTimeoutException.class));
+            timeoutDone.set(true);
+        });
+
+        await().atMost(1, TimeUnit.SECONDS).untilTrue(commandDone);
+        verify(chain, never()).next();
+    }
+
+    @Test
+    void testWithTimeoutCommandCallsFailAfterTimeoutIsIgnored() {
+        AtomicBoolean timeoutDone = new AtomicBoolean(false);
+        AtomicBoolean commandDone = new AtomicBoolean(false);
+        Exception lateEx = new RuntimeException("late error");
+
+        AsyncCommand hangingCommand = (ctx, cc) -> new Thread(() -> {
+            await().atMost(1, TimeUnit.SECONDS).untilTrue(timeoutDone);
+            cc.fail(lateEx);
+            commandDone.set(true);
+        }).start();
+
+        AsyncCommand timed = Commands.withTimeout(50, TimeUnit.MILLISECONDS, hangingCommand);
+        timed.execute(context, chain);
+
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(chain).fail(isA(CommandTimeoutException.class));
+            timeoutDone.set(true);
+        });
+
+        await().atMost(1, TimeUnit.SECONDS).untilTrue(commandDone);
+        verify(chain, never()).fail(lateEx);
+    }
+
+    @Test
+    void testWithTimeoutCommandThrowsExceptionSynchronously() {
+        RuntimeException ex = new RuntimeException("sync error");
+        doThrow(ex).when(mockAsyncCommand).execute(any(), any());
+
+        AsyncCommand timed = Commands.withTimeout(200, TimeUnit.MILLISECONDS, mockAsyncCommand);
+        timed.execute(context, chain);
+
+        verify(chain).fail(ex);
+        verify(chain, never()).next();
+    }
+
+    @Test
+    void testWithTimeoutDelegatesAdd() {
+        doAnswer(invocation -> {
+            CommandChain cc = invocation.getArgument(1);
+            cc.add(mockAsyncCommand);
+            cc.next();
+            return null;
+        }).when(mockAsyncCommand).execute(any(), any());
+
+        AsyncCommand timed = Commands.withTimeout(200, TimeUnit.MILLISECONDS, mockAsyncCommand);
+        timed.execute(context, chain);
+
+        verify(chain).add(mockAsyncCommand);
+        verify(chain).next();
+    }
+
+    @Test
+    void testWithTimeoutTimeUnitOverload() {
+        AsyncCommand timed = Commands.withTimeout(50, TimeUnit.MILLISECONDS, mockAsyncCommand);
+        timed.execute(context, chain);
+
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() ->
+                verify(chain).fail(isA(CommandTimeoutException.class))
+        );
+    }
+
+    @Test
+    void testWithTimeoutSynchronousCommandSuccess() throws Exception {
+        AsyncCommand timed = Commands.withTimeout(200, TimeUnit.MILLISECONDS, mockCommand);
+        timed.execute(context, chain);
+
+        verify(mockCommand).execute(context);
+        verify(chain).next();
+    }
+
+    @Test
+    void testWithTimeoutSynchronousCommandFailure() throws Exception {
+        Exception ex = new RuntimeException("sync cmd failure");
+        doThrow(ex).when(mockCommand).execute(context);
+
+        AsyncCommand timed = Commands.withTimeout(200, TimeUnit.MILLISECONDS, mockCommand);
+        timed.execute(context, chain);
+
+        verify(chain).fail(ex);
+    }
+
+    @Test
+    void testWithTimeoutToString() {
+        AsyncCommand timed = Commands.withTimeout(200, TimeUnit.MILLISECONDS, mockAsyncCommand);
+        assertEquals(mockAsyncCommand.toString(), timed.toString());
     }
     
     

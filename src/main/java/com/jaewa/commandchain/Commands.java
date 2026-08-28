@@ -3,6 +3,11 @@ package com.jaewa.commandchain;
 import com.jaewa.commandchain.service.ExecutorService;
 import java.awt.EventQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import javax.swing.SwingUtilities;
 import org.apache.commons.lang3.StringUtils;
@@ -282,7 +287,7 @@ public class Commands {
      * @param cmd  the original Command whose execute behavior will be used
      * @return a new Command instance with the provided name and delegated behavior
      */
-    public static Command named(String name, Command cmd){
+    public static Command named(String name, Command cmd) {
         return new Command() {
             @Override
             public void execute(Context ctx) throws Exception {
@@ -294,6 +299,85 @@ public class Commands {
                 return StringUtils.isNotBlank(name) ? name : cmd.toString();
             }
         };
+    }
+
+    private static final ScheduledExecutorService TIMEOUT_SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread thread = new Thread(r, "command-timeout-scheduler");
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    /**
+     * Creates an {@link AsyncCommand} wrapper that executes the given command with a timeout.
+     * If the wrapped command does not invoke {@link CommandChain#next()} or {@link CommandChain#fail(Throwable)}
+     * within the specified timeout duration, the chain fails with a {@link CommandTimeoutException}.
+     *
+     * @param timeout the maximum duration to wait
+     * @param unit    the time unit of the timeout duration
+     * @param command the {@link AsyncCommand} to execute with timeout
+     * @return an {@link AsyncCommand} that enforces the timeout
+     */
+    public static AsyncCommand withTimeout(long timeout, TimeUnit unit, AsyncCommand command) {
+        return new AsyncCommand() {
+            @Override
+            public void execute(Context ctx, CommandChain chain) {
+                AtomicBoolean completed = new AtomicBoolean(false);
+
+                ScheduledFuture<?> timeoutFuture = TIMEOUT_SCHEDULER.schedule(() -> {
+                    if (completed.compareAndSet(false, true)) {
+                        chain.fail(new CommandTimeoutException("Command execution timed out after " + timeout + " " + unit.name().toLowerCase()));
+                    }
+                }, timeout, unit);
+
+                CommandChain timeoutChain = new CommandChain() {
+                    @Override
+                    public void next() {
+                        if (completed.compareAndSet(false, true)) {
+                            timeoutFuture.cancel(false);
+                            chain.next();
+                        }
+                    }
+
+                    @Override
+                    public void fail(Throwable e) {
+                        if (completed.compareAndSet(false, true)) {
+                            timeoutFuture.cancel(false);
+                            chain.fail(e);
+                        }
+                    }
+
+                    @Override
+                    public void add(AsyncCommand cmd) {
+                        chain.add(cmd);
+                    }
+                };
+
+                try {
+                    command.execute(ctx, timeoutChain);
+                } catch (Exception e) {
+                    timeoutChain.fail(e);
+                }
+            }
+
+            @Override
+            public String toString() {
+                return command.toString();
+            }
+        };
+    }
+
+    /**
+     * Creates an {@link AsyncCommand} wrapper that executes the given synchronous command with a timeout.
+     * If the command does not complete within the specified timeout duration, the chain fails
+     * with a {@link CommandTimeoutException}.
+     *
+     * @param timeout the maximum duration to wait
+     * @param unit    the time unit of the timeout duration
+     * @param command the synchronous {@link Command} to execute with timeout
+     * @return an {@link AsyncCommand} that enforces the timeout
+     */
+    public static AsyncCommand withTimeout(long timeout, TimeUnit unit, Command command) {
+        return withTimeout(timeout, unit, async(command));
     }
 
     static AsyncCommand safe(AsyncCommand cmd) {

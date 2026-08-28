@@ -428,6 +428,7 @@ The `Commands` utility class provides static decorators to wrap logic:
 -   **`wireTap(Runnable)`**: Executes a side-effect without blocking the main chain progression.
 -   **`conditional(Predicate, AsyncCommand)`**: Executes the command only if the condition is met.
 -   **`named(String, Command)`**: Assigns a name for debugging/logging.
+-   **`withTimeout(long, TimeUnit, ...)`**: Wraps a `Command` or `AsyncCommand` with a maximum execution timeout, failing the chain with `CommandTimeoutException` if it does not complete in time.
 -   **`safe(AsyncCommand)`**: Wraps a command to catch exceptions and signal failure automatically.
 
 Example:
@@ -436,7 +437,17 @@ import static com.jaewa.commandchain.Commands.*;
 
 builder.exec(onEventQueue(ctx -> label.setText("Updating UI...")))
        .exec(wireTap(() -> logger.info("Step reached")))
-       .exec(named("FetchData", async(api::call)));
+       .exec(named("FetchData", async(api::call)))
+       .exec(withTimeout(5, TimeUnit.SECONDS, (ctx, chain) -> {
+           // Asynchronous task that must call chain.next() or fail() within 5 seconds
+           api.fetchDataAsync().thenAccept(result -> {
+               ctx.set("data", result);
+               chain.next();
+           }).exceptionally(ex -> {
+               chain.fail(ex);
+               return null;
+           });
+       }));
 ```
 
 ---
