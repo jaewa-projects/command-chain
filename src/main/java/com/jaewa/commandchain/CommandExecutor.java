@@ -7,6 +7,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,13 +51,13 @@ import static com.jaewa.commandchain.Commands.safe;
  *   <li>Allows the chain to be interrupted during execution.</li>
  * </ul>
  */
-public class CommandExecutor implements CommandChain, AsyncCommand {
+public class CommandExecutor implements AsyncCommand {
 
     private static final Logger log = LoggerFactory.getLogger(CommandExecutor.class);
 
     private AsyncFailureHandler failureHandler;
 
-    private boolean failureHandlerHasHandled;
+    private volatile boolean failureHandlerHasHandled;
 
     private CompletableFuture<Void> future;
 
@@ -65,6 +66,8 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
     private Context currentContext;
 
     private final CommandSource commandSource;
+
+    private CommandChain activeCommandChain;
 
 
     /**
@@ -186,45 +189,65 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
         return future;
     }
 
-
-    @Override
-    public synchronized void next() {
+    private synchronized void next() {
         if (currentContext.isInterrupted()) {
             log.warn("Execution interrupted");
             future.completeExceptionally(new CommandInterruptedException());
         }else {
+            failureHandlerHasHandled = false;
             AsyncCommand cmd = commandSource.next();
             if (cmd != null) {
                 log.info("Executing command: {}", cmd);
                 executeCommandAsync(cmd);
             } else {
+                activeCommandChain = null;
                 future.complete(null);
             }
         }
     }
 
-    @Override
-    public void fail(Throwable e) {
+    private void executeCommandAsync(AsyncCommand cmd) {
+        SingleUseCommandChain commandChain = new SingleUseCommandChain();
+
+        synchronized (this) {
+            activeCommandChain = commandChain;
+        }
+
+        ExecutorService.execute(() -> {
+            cmd.execute(currentContext, commandChain);
+            log.debug("Command {} executed", cmd);
+        });
+    }
+
+    private void fail(Throwable e) {
+
         if (!failureHandlerHasHandled && failureHandler != null) {
             failureHandlerHasHandled = true;
-            failureHandler.execute(e, this);
+            executeFailAsync(e);
         } else {
             future.completeExceptionally(e);
         }
     }
 
-    private void executeCommandAsync(AsyncCommand cmd) {
+    private void executeFailAsync(Throwable e) {
+        SingleUseCommandChain commandChain = new SingleUseCommandChain();
+
+        synchronized (this) {
+            activeCommandChain = commandChain;
+        }
+
         ExecutorService.execute(() -> {
-            cmd.execute(currentContext, this);
-            log.debug("Command {} executed", cmd);
+            failureHandler.execute(e, commandChain);
+            log.debug("Failure handler {} executed", failureHandler);
         });
+
     }
 
     @Override
     public void execute(Context ctx, CommandChain chain) {
         start(ctx).thenRun(chain::next)
                 .exceptionally(e -> {
-                    fail(e.getCause() != null ? e.getCause() : e);
+                    chain.fail(e.getCause() != null ? e.getCause() : e);
                     return null;
                 });
     }
@@ -264,6 +287,65 @@ public class CommandExecutor implements CommandChain, AsyncCommand {
     public Context getCurrentContext() {
         return currentContext;
     }
+
+    private class SingleUseCommandChain implements CommandChain {
+
+        private final AtomicBoolean used = new AtomicBoolean(false);
+
+        @Override
+        public void next() {
+            if (!used.compareAndSet(false, true)) {
+                log.error("CommandChain.next() or fail() has already been called by this command");
+                return;
+            }
+
+            synchronized (CommandExecutor.this) {
+                if (isNotActiveCommandChain(this)) {
+                    log.error("This command is no longer the active command");
+                    return;
+                }
+
+                activeCommandChain = null;
+                CommandExecutor.this.next();
+            }
+        }
+
+        @Override
+        public void fail(Throwable e) {
+            if (!used.compareAndSet(false, true)) {
+                log.error("CommandChain.next() or fail() has already been called by this command");
+                return;
+            }
+
+            synchronized (CommandExecutor.this) {
+                if (isNotActiveCommandChain(this)) {
+                    log.error("This command is no longer the active command");
+                    return;
+                }
+
+                activeCommandChain = null;
+                CommandExecutor.this.fail(e);
+            }
+        }
+
+        @Override
+        public void add(AsyncCommand command) {
+            synchronized (CommandExecutor.this) {
+                if (isNotActiveCommandChain(this)) {
+                    log.error("This command is no longer the active command");
+                    return;
+                }
+                CommandExecutor.this.add(command);
+            }
+
+        }
+
+        private boolean isNotActiveCommandChain(CommandChain commandChain) {
+            return activeCommandChain != commandChain;
+        }
+
+    }
+
 
     private class ContinuousFuture implements Future<Void> {
 

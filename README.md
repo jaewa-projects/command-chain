@@ -9,6 +9,7 @@ Unlike traditional linear execution, `command-chain` allows you to model algorit
 ## Features
 
 - **Manual Flow Control**: Total control over algorithm progression using `chain.next()` and `chain.fail()`.
+- **Active Command Protection**: Commands can only affect the chain (`next()`, `fail()`, `add()`) while they are the currently active command; late or duplicate calls are safely ignored.
 - **Asynchronous by Design**: Ideal for simulating complex state machines or multi-step processes where steps finish at different times.
 - **Fluent Algorithm Builder**: Compose your logic using a clean, readable builder API.
 - **Dynamic Command Addition**: Add new commands to the chain even during execution, allowing for adaptive workflows.
@@ -168,6 +169,24 @@ Under the hood, `Commands.async(future)` automatically registers completion hand
         chain.next();
     }
 });
+```
+
+#### 5. Active Command Enforcement & Single-Use Flow Control
+
+To protect against race conditions, duplicate progression, and stray or delayed asynchronous callbacks, the `CommandExecutor` enforces strict rules on the `CommandChain`:
+
+- **Active Command Only**: A command can only interact with the `CommandChain` (calling `next()`, `fail()`, or `add()`) while it is the **currently executing (active) command**. If a command attempts to invoke `next()`, `fail()`, or `add()` when it is no longer the active command (e.g. after the chain has already progressed or completed), the call is safely ignored.
+- **Single-Use `next()` and `fail()`**: Each command execution can invoke `chain.next()` or `chain.fail()` at most once. Subsequent or duplicate calls by the same command are ignored.
+
+```java
+// Example: Delayed callbacks or duplicate calls are safely ignored
+(ctx, chain) -> {
+    chain.next(); // Advances the chain; this command is no longer active
+    
+    // Any subsequent call or late callback from this command is ignored:
+    chain.next(); // Ignored
+    chain.fail(new RuntimeException("Late error")); // Ignored
+};
 ```
 
 ---

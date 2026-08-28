@@ -52,4 +52,13 @@ public interface CommandChain {
      * @param e the throwable representing the failure or error that caused the chain to stop
      */
     void fail(Throwable e);
+
+    /**
+     * Adds an asynchronous command to the command chain.
+     * This method allows the inclusion of an {@link AsyncCommand},
+     * enabling it to be executed as part of the chain's sequence.
+     *
+     * @param command the asynchronous command to be added to the chain
+     */
+    void add(AsyncCommand command);
 }

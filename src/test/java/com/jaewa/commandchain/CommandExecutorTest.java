@@ -1,10 +1,10 @@
 package com.jaewa.commandchain;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,7 +12,6 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -71,8 +70,8 @@ class CommandExecutorTest {
         commandExecutor.start(context).get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
@@ -99,8 +98,8 @@ class CommandExecutorTest {
         commandExecutor.start(context).get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
@@ -124,7 +123,7 @@ class CommandExecutorTest {
         assertEquals(testException, ee.getCause());
 
         InOrder inOrder = inOrder(command1, command2);
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
 
         verifyNoMoreInteractions(command1, command2);
     }
@@ -156,8 +155,8 @@ class CommandExecutorTest {
         assertEquals(handlerException, ee.getCause());
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(failureHandler).execute(testException, commandExecutor);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(failureHandler).execute(eq(testException), any(CommandChain.class));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
     }
@@ -191,11 +190,55 @@ class CommandExecutorTest {
         commandExecutor.start(context).get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(failureHandler).execute(testException, commandExecutor);
-        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(failureHandler).execute(eq(testException), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
+    }
+
+    @Test
+    void testFailureWithHandlerThatRecoversButLaterCommandFails() throws Exception {
+        RuntimeException firstException = new RuntimeException("First error");
+        RuntimeException secondException = new RuntimeException("Second error");
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).fail(firstException);
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).fail(secondException);
+            return null;
+        }).when(command3).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(failureHandler).execute(any(), any());
+
+        CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(command2)
+                .exec(command3)
+                .onFailure(failureHandler)
+                .build();
+
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
+
+        InOrder inOrder = inOrder(command1, command2, command3, failureHandler);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(failureHandler).execute(eq(firstException), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command3).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(failureHandler).execute(eq(secondException), any(CommandChain.class));
+
+        verifyNoMoreInteractions(command1, command2, command3, failureHandler);
     }
 
 
@@ -217,9 +260,45 @@ class CommandExecutorTest {
         assertThrows(ExecutionException.class, () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
 
         InOrder inOrder = inOrder(command1, command2, failureHandler);
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
 
         verifyNoMoreInteractions(command1, command2, failureHandler);
+    }
+
+    @Test
+    void testInterruptWithFailureHandlerNotInvoked() {
+        doAnswer(invocation -> {
+            Context ctx = invocation.getArgument(0);
+            ctx.interrupt();
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(command2)
+                .onFailure(failureHandler)
+                .build();
+
+        assertThrows(ExecutionException.class, () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
+
+        InOrder inOrder = inOrder(command1, command2, failureHandler);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+
+        verifyNoMoreInteractions(command1, command2, failureHandler);
+    }
+
+    @Test
+    void testInterruptCommandExecutor() {
+        CommandExecutor executor = new CommandExecutor();
+
+        // Test interrupt with null context
+        executor.interrupt(); // Should not throw exception
+
+        executor.start(context);
+
+        executor.interrupt();
+        assertTrue(context.isInterrupted());
     }
 
     @Test
@@ -255,9 +334,9 @@ class CommandExecutorTest {
     @Test
     void testExecuteWithDynamicAddition() throws Exception {
         doAnswer(invocation -> {
-            CommandExecutor executor = invocation.getArgument(1);
-            executor.add(command3);
-            executor.next();
+            CommandChain chain = invocation.getArgument(1);
+            chain.add(command3);
+            chain.next();
             return null;
         }).when(command1).execute(any(), any());
 
@@ -279,9 +358,9 @@ class CommandExecutorTest {
         commandExecutor.start(context).get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, command3);
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(command3).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command3).execute(any(Context.class), any(CommandChain.class));
 
         verifyNoMoreInteractions(command1, command2, command3);
     }
@@ -289,8 +368,8 @@ class CommandExecutorTest {
     @Test
     void testStartContinuous() throws ExecutionException, InterruptedException, TimeoutException {
         doAnswer(invocation -> {
-            CommandExecutor executor = invocation.getArgument(1);
-            executor.next();
+            CommandChain chain = invocation.getArgument(1);
+            chain.next();
             return null;
         }).when(command1).execute(any(), any());
 
@@ -316,9 +395,9 @@ class CommandExecutorTest {
         future.get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, command3);
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(command3).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command3).execute(any(Context.class), any(CommandChain.class));
 
         verifyNoMoreInteractions(command1, command2, command3);
 
@@ -327,8 +406,8 @@ class CommandExecutorTest {
     @Test
     void testStartContinuousEmpty() throws ExecutionException, InterruptedException, TimeoutException {
         doAnswer(invocation -> {
-            CommandExecutor executor = invocation.getArgument(1);
-            executor.next();
+            CommandChain chain = invocation.getArgument(1);
+            chain.next();
             return null;
         }).when(command1).execute(any(), any());
 
@@ -354,9 +433,9 @@ class CommandExecutorTest {
         future.get(5, TimeUnit.SECONDS);
 
         InOrder inOrder = inOrder(command1, command2, command3);
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(command3).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command3).execute(any(Context.class), any(CommandChain.class));
 
         verifyNoMoreInteractions(command1, command2, command3);
 
@@ -388,11 +467,11 @@ class CommandExecutorTest {
 
         InOrder inOrder = inOrder(command1, command2);
         // First execution
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
         // Second execution
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
 
         verifyNoMoreInteractions(command1, command2);
     }
@@ -423,8 +502,8 @@ class CommandExecutorTest {
 
         InOrder inOrder = inOrder(command1, command2);
         // Only first execution
-        inOrder.verify(command1).execute(any(Context.class), eq(commandExecutor));
-        inOrder.verify(command2).execute(any(Context.class), eq(commandExecutor));
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
 
         verifyNoMoreInteractions(command1, command2);
     }
@@ -443,39 +522,6 @@ class CommandExecutorTest {
     void testStartWithNullContext() {
         CommandExecutor executor = new CommandExecutor();
         assertThrows(IllegalArgumentException.class, () -> executor.start(null));
-    }
-
-    @Test
-    void testFailTwice() {
-        CommandExecutor executor = CommandExecutor.pipelineBuilder()
-                .exec((ctx, chain) -> {
-                    // non chiamando next() o fail() teniamo il comando "appeso"
-                })
-                .build();
-        CompletableFuture<Void> future = executor.start(context);
-        
-        Exception ex1 = new RuntimeException("Error 1");
-        Exception ex2 = new RuntimeException("Error 2");
-        
-        executor.fail(ex1);
-        executor.fail(ex2);
-        
-        // Verifichiamo direttamente il future restituito da start
-        ExecutionException ee = assertThrows(ExecutionException.class, () -> future.get(1, TimeUnit.SECONDS));
-        assertEquals(ex1, ee.getCause());
-    }
-
-    @Test
-    void testInterruptMethod() {
-        CommandExecutor executor = new CommandExecutor();
-        
-        // Test interrupt with null context
-        executor.interrupt(); // Should not throw exception
-        
-        executor.start(context);
-        
-        executor.interrupt();
-        assertTrue(context.isInterrupted());
     }
 
     @Test
@@ -505,31 +551,315 @@ class CommandExecutorTest {
     }
 
     @Test
-    void testExecuteAsAsyncCommandFailure() {
-        CommandChain mockChain = mock(CommandChain.class);
-        Exception ex = new RuntimeException("Fail");
-        
-        // Creiamo un executor manuale che fallisce
-        CommandExecutor executor = new CommandExecutor() {
-            @Override
-            public CompletableFuture<Void> start(Context ctx) {
-                CompletableFuture<Void> f = new CompletableFuture<>();
-                // Il completamento eccezionale con ex (non avvolto) 
-                // fa sì che e.getCause() in execute sia null
-                f.completeExceptionally(ex);
-                return f;
-            }
-            
-            @Override
-            public void fail(Throwable t) {
-                // Il metodo execute chiama fail(e.getCause() != null ? e.getCause() : e)
-                mockChain.fail(t);
-            }
-        };
-        
-        executor.execute(context, mockChain);
-        
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(mockChain).fail(ex));
+    void testNextCalledMultipleTimesBySameCommandIsIgnored() throws Exception {
+        doAnswer(invocation -> {
+            CommandChain chain = invocation.getArgument(1);
+            chain.next();
+            chain.next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
+
+        CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(command2)
+                .build();
+
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
+
+        InOrder inOrder = inOrder(command1, command2);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
+
+        verifyNoMoreInteractions(command1, command2);
+    }
+
+    @Test
+    void testFailCalledAfterNextBySameCommandIsIgnored() throws Exception {
+        doAnswer(invocation -> {
+            CommandChain chain = invocation.getArgument(1);
+            chain.next();
+            chain.fail(new RuntimeException("Delayed or duplicate error"));
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
+
+        CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(command2)
+                .onFailure(failureHandler)
+                .build();
+
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
+
+        InOrder inOrder = inOrder(command1, command2, failureHandler);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
+
+        verifyNoMoreInteractions(command1, command2, failureHandler);
+    }
+
+    @Test
+    void testNextCalledAfterFailBySameCommandIsIgnored() {
+        RuntimeException testException = new RuntimeException("Initial failure");
+
+        doAnswer(invocation -> {
+            CommandChain chain = invocation.getArgument(1);
+            chain.fail(testException);
+            chain.next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(command2)
+                .build();
+
+        ExecutionException ee = assertThrows(ExecutionException.class,
+                () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
+        assertEquals(testException, ee.getCause());
+
+        InOrder inOrder = inOrder(command1, command2);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+
+        verifyNoMoreInteractions(command1, command2);
+    }
+
+    @Test
+    void testFailCalledMultipleTimesBySameCommandIsIgnored() {
+        RuntimeException firstException = new RuntimeException("First error");
+        RuntimeException secondException = new RuntimeException("Second error");
+
+        doAnswer(invocation -> {
+            CommandChain chain = invocation.getArgument(1);
+            chain.fail(firstException);
+            chain.fail(secondException);
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).fail(invocation.getArgument(0));
+            return null;
+        }).when(failureHandler).execute(any(), any());
+
+        CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(command2)
+                .onFailure(failureHandler)
+                .build();
+
+        ExecutionException ee = assertThrows(ExecutionException.class,
+                () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
+        assertEquals(firstException, ee.getCause());
+
+        InOrder inOrder = inOrder(command1, failureHandler, command2);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(failureHandler).execute(eq(firstException), any(CommandChain.class));
+
+        verifyNoMoreInteractions(command1, failureHandler, command2);
+    }
+
+    @Test
+    void testCallNextOrFailWhenNoLongerActiveCommandIsIgnored() throws Exception {
+        AtomicReference<CommandChain> command1ChainRef = new AtomicReference<>();
+
+        doAnswer(invocation -> {
+            CommandChain chain = invocation.getArgument(1);
+            command1ChainRef.set(chain);
+            chain.next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            // command1 tries to call next and fail while command2 is running
+            command1ChainRef.get().next();
+            command1ChainRef.get().fail(new RuntimeException("Late fail from command1"));
+
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
+
+        CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(command2)
+                .onFailure(failureHandler)
+                .build();
+
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
+
+        // Now pipeline is finished, calling next or fail on command1's chain should still be ignored
+        command1ChainRef.get().next();
+        command1ChainRef.get().fail(new RuntimeException("Late fail after finish"));
+
+        InOrder inOrder = inOrder(command1, command2, failureHandler);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
+
+        verifyNoMoreInteractions(command1, command2, failureHandler);
+    }
+
+    @Test
+    void testFailureHandlerCallsNextMultipleTimesIsIgnored() throws Exception {
+        RuntimeException testException = new RuntimeException("Test error");
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).fail(testException);
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            CommandChain chain = invocation.getArgument(1);
+            chain.next();
+            chain.next();
+            return null;
+        }).when(failureHandler).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
+
+        CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(command2)
+                .onFailure(failureHandler)
+                .build();
+
+        commandExecutor.start(context).get(5, TimeUnit.SECONDS);
+
+        InOrder inOrder = inOrder(command1, failureHandler, command2);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(failureHandler).execute(eq(testException), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
+
+        verifyNoMoreInteractions(command1, failureHandler, command2);
+    }
+
+    @Test
+    void testFailureHandlerCallsFailMultipleTimesIsIgnored() {
+        RuntimeException initialException = new RuntimeException("Initial error");
+        RuntimeException handlerFirstException = new RuntimeException("Handler first error");
+        RuntimeException handlerSecondException = new RuntimeException("Handler second error");
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).fail(initialException);
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            CommandChain chain = invocation.getArgument(1);
+            chain.fail(handlerFirstException);
+            chain.fail(handlerSecondException);
+            return null;
+        }).when(failureHandler).execute(any(), any());
+
+        CommandExecutor commandExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(command2)
+                .onFailure(failureHandler)
+                .build();
+
+        ExecutionException ee = assertThrows(ExecutionException.class,
+                () -> commandExecutor.start(context).get(5, TimeUnit.SECONDS));
+        assertEquals(handlerFirstException, ee.getCause());
+
+        InOrder inOrder = inOrder(command1, failureHandler, command2);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(failureHandler).execute(eq(initialException), any(CommandChain.class));
+
+        verifyNoMoreInteractions(command1, failureHandler, command2);
+    }
+
+    @Test
+    void testExecuteWithInnerCommandExecutorSuccess() throws Exception {
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command2).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command3).execute(any(), any());
+
+        CommandExecutor innerExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command2)
+                .build();
+
+        CommandExecutor mainExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(innerExecutor)
+                .exec(command3)
+                .build();
+
+        mainExecutor.start(context).get(5, TimeUnit.SECONDS);
+
+        InOrder inOrder = inOrder(command1, command2, command3);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command3).execute(any(Context.class), any(CommandChain.class));
+
+        verifyNoMoreInteractions(command1, command2, command3);
+    }
+
+    @Test
+    void testExecuteWithInnerCommandExecutorFailure() throws Exception {
+        RuntimeException innerException = new RuntimeException("Inner error");
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command1).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).fail(innerException);
+            return null;
+        }).when(command2).execute(any(), any());
+
+        doAnswer(invocation -> {
+            assertEquals(innerException, invocation.getArgument(0));
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(failureHandler).execute(any(), any());
+
+        doAnswer(invocation -> {
+            ((CommandChain) invocation.getArgument(1)).next();
+            return null;
+        }).when(command3).execute(any(), any());
+
+        CommandExecutor innerExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command2)
+                .build();
+
+        CommandExecutor mainExecutor = CommandExecutor.pipelineBuilder()
+                .exec(command1)
+                .exec(innerExecutor)
+                .exec(command3)
+                .onFailure(failureHandler)
+                .build();
+
+        mainExecutor.start(context).get(5, TimeUnit.SECONDS);
+
+        InOrder inOrder = inOrder(command1, command2, failureHandler, command3);
+        inOrder.verify(command1).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(command2).execute(any(Context.class), any(CommandChain.class));
+        inOrder.verify(failureHandler).execute(eq(innerException), any(CommandChain.class));
+        inOrder.verify(command3).execute(any(Context.class), any(CommandChain.class));
+
+        verifyNoMoreInteractions(command1, command2, failureHandler, command3);
     }
 
 }
