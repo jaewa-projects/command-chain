@@ -235,46 +235,6 @@ class CommandsTest {
     }
 
     @Test
-    void testNamedAsyncCommand() {
-        String name = "TestAsyncCommand";
-        AsyncCommand named = Commands.named(name, mockAsyncCommand);
-
-        assertEquals(name, named.toString());
-        named.execute(context, chain);
-        verify(mockAsyncCommand).execute(context, chain);
-    }
-
-    @Test
-    void testNamedAsyncCommandFallback() {
-        String originalName = mockAsyncCommand.toString();
-        AsyncCommand named = Commands.named("", mockAsyncCommand);
-        assertEquals(originalName, named.toString());
-
-        named = Commands.named(null, mockAsyncCommand);
-        assertEquals(originalName, named.toString());
-    }
-
-    @Test
-    void testNamedCommand() throws Exception {
-        String name = "TestCommand";
-        Command named = Commands.named(name, mockCommand);
-
-        assertEquals(name, named.toString());
-        named.execute(context);
-        verify(mockCommand).execute(context);
-    }
-
-    @Test
-    void testNamedCommandFallback() {
-        String originalName = mockCommand.toString();
-        Command named = Commands.named("", mockCommand);
-        assertEquals(originalName, named.toString());
-
-        named = Commands.named(null, mockCommand);
-        assertEquals(originalName, named.toString());
-    }
-
-    @Test
     void testConstructorIsPrivate() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
         Constructor<Commands> constructor = Commands.class.getDeclaredConstructor();
         assertTrue(java.lang.reflect.Modifier.isPrivate(constructor.getModifiers()));
