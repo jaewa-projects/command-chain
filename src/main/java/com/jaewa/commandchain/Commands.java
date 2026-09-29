@@ -8,6 +8,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import javax.swing.SwingUtilities;
 import org.slf4j.Logger;
@@ -230,10 +232,30 @@ public class Commands {
     }
 
     /**
+     * Creates an asynchronous command that extracts data from the provided context using the given
+     * dataExtractor function, passes the extracted data to the specified runnable for processing,
+     * and then continues with the next command in the chain.
+     * The {@code Consumer.accept(data)} method is executed asynchronously, and the chain
+     * invocation proceeds immediately regardless of the completion of the {@code Consumer}.
+     *
+     * @param <T>           the type of data to be extracted and processed
+     * @param dataExtractor a function that extracts data of type T from the provided context
+     * @param runnable      a consumer that processes the extracted data asynchronously
+     * @return an instance of AsyncCommand that encapsulates the wiretap behavior
+     */
+    public static <T> AsyncCommand wireTap(Function<Context, T> dataExtractor, Consumer<T> runnable) {
+        return (ctx, chain) -> {
+            T data = dataExtractor.apply(ctx);
+            ExecutorService.execute(() -> runnable.accept(data));
+            chain.next();
+        };
+    }
+
+    /**
      * Creates a conditional command that executes the {@code trueCommand} if the condition is met.
      * Otherwise, it immediately proceeds to the next command in the chain.
      *
-     * @param condition    the condition to evaluate
+     * @param condition   the condition to evaluate
      * @param trueCommand the command to execute if the condition is true
      * @return a conditional {@link AsyncCommand}
      */
@@ -245,7 +267,7 @@ public class Commands {
      * Creates a conditional command that executes {@code trueCommand} if the condition is met,
      * or {@code falseCommand} otherwise.
      *
-     * @param condition     the condition to evaluate
+     * @param condition    the condition to evaluate
      * @param trueCommand  the command to execute if the condition is true
      * @param falseCommand the command to execute if the condition is false
      * @return a conditional {@link AsyncCommand}
@@ -264,7 +286,7 @@ public class Commands {
      * Logs the execution of an asynchronous command with a specified name and default log level.
      *
      * @param name the name associated with the command, used for logging purposes
-     * @param cmd the asynchronous command to be logged and executed
+     * @param cmd  the asynchronous command to be logged and executed
      * @return the asynchronous command wrapped with logging behavior
      */
     public static AsyncCommand logged(String name, AsyncCommand cmd) {
@@ -275,9 +297,9 @@ public class Commands {
      * Wraps an {@code AsyncCommand} with logging functionality. Logs the execution
      * of the command at the specified log level before and after it is executed.
      *
-     * @param name the name of the command to be logged
+     * @param name  the name of the command to be logged
      * @param level the logging level at which to log the command execution
-     * @param cmd the {@code AsyncCommand} to be executed and logged
+     * @param cmd   the {@code AsyncCommand} to be executed and logged
      * @return a new {@code AsyncCommand} that includes the logging around the execution
      */
     public static AsyncCommand logged(String name, Level level, AsyncCommand cmd) {
@@ -292,7 +314,7 @@ public class Commands {
      * Creates and returns an asynchronous command wrapped with logging functionality.
      *
      * @param name the name used for identifying or labeling the logged command
-     * @param cmd the command to be executed and logged asynchronously
+     * @param cmd  the command to be executed and logged asynchronously
      * @return an asynchronous command with logging capabilities
      */
     public static AsyncCommand logged(String name, Command cmd) {
@@ -302,9 +324,9 @@ public class Commands {
     /**
      * Wraps the provided command with logging capabilities at the specified log level.
      *
-     * @param name the name to associate with the logged command
+     * @param name  the name to associate with the logged command
      * @param level the logging level to use
-     * @param cmd the command to be wrapped with logging functionality
+     * @param cmd   the command to be wrapped with logging functionality
      * @return an asynchronous command that includes logging behavior
      */
     public static AsyncCommand logged(String name, Level level, Command cmd) {
