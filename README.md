@@ -25,7 +25,7 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>com.jaewa</groupId>
     <artifactId>command-chain</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -267,6 +267,19 @@ CommandExecutor.pipelineBuilder()
     .build();
 ```
 
+Additionally, `Commands.wireTap(Function<Context, T>, Consumer<T>)` can be passed to `exec(...)` to extract data from the `Context` and process it asynchronously as a side-effect without delaying the chain progression:
+
+```java
+CommandExecutor.pipelineBuilder()
+    .exec(ctx -> ctx.set("orderId", "12345"))
+    .exec(Commands.wireTap(
+        ctx -> ctx.get("orderId", String.class),
+        orderId -> analyticsService.trackOrder(orderId)
+    ))
+    .exec(someAsyncCommand)
+    .build();
+```
+
 ### CommandExecutor as the Engine
 
 The builder creates a `CommandExecutor` instance. To start the execution, you call the `start(Context)` method.
@@ -426,6 +439,7 @@ The `Commands` utility class provides static decorators to wrap logic:
 -   **`async(...)`**: Wraps Runnables, Commands, or CompletableFutures into an `AsyncCommand`.
 -   **`onEventQueue(...)`**: Forces execution on the AWT Event Dispatch Thread (UI).
 -   **`wireTap(Runnable)`**: Executes a side-effect without blocking the main chain progression.
+-   **`wireTap(Function<Context, T>, Consumer<T>)`**: Extracts data from the `Context` and passes it asynchronously to a `Consumer` side-effect without blocking the chain.
 -   **`conditional(Predicate, AsyncCommand)`**: Executes the command only if the condition is met.
 -   **`logged(String, AsyncCommand)`**: Assigns a name for logging.
 -   **`withTimeout(long, TimeUnit, ...)`**: Wraps a `Command` or `AsyncCommand` with a maximum execution timeout, failing the chain with `CommandTimeoutException` if it does not complete in time.
@@ -437,6 +451,7 @@ import static com.jaewa.commandchain.Commands.*;
 
 builder.exec(onEventQueue(ctx -> label.setText("Updating UI...")))
        .exec(wireTap(() -> logger.info("Step reached")))
+       .exec(wireTap(ctx -> ctx.get("userId", String.class), id -> metrics.recordUser(id)))
        .exec(logged("FetchData", async(api::call)))
        .exec(withTimeout(5, TimeUnit.SECONDS, (ctx, chain) -> {
            // Asynchronous task that must call chain.next() or fail() within 5 seconds
